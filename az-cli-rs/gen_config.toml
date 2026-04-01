@@ -1,0 +1,213 @@
+# Configuration for aaz-gen build-time code generation.
+# Each [[modules]] entry maps a service to its AAZ source directory.
+# cli_prefix is used for clap command naming.
+
+azure_cli_path = "../azure-cli"
+
+# Full network module — all subgroups nested under `azrs network`
+[[modules]]
+service = "network"
+cli_prefix = "network"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/network/aaz/latest/network"
+
+# Full VM module — all subgroups nested under `azrs vm`
+[[modules]]
+service = "vm_gen"
+cli_prefix = "vm"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/vm"
+
+[[modules]]
+service = "cosmosdb"
+cli_prefix = "cosmosdb"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/cosmosdb/aaz/latest"
+
+[[modules]]
+service = "sql"
+cli_prefix = "sql"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/sql/aaz/latest"
+
+[[modules]]
+service = "monitor"
+cli_prefix = "monitor"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/monitor/aaz/latest"
+
+[[modules]]
+service = "servicebus"
+cli_prefix = "servicebus"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/servicebus/aaz/latest"
+
+[[modules]]
+service = "eventhubs"
+cli_prefix = "eventhubs"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/eventhubs/aaz/latest"
+
+[[modules]]
+service = "resource_policy"
+cli_prefix = "policy"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/resource/aaz/latest/policy"
+
+# VM sub-resources — each gets its own top-level command
+[[modules]]
+service = "vmss_gen"
+cli_prefix = "vmss"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/vmss"
+
+[[modules]]
+service = "disk_gen"
+cli_prefix = "disk"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/disk"
+
+[[modules]]
+service = "disk_access"
+cli_prefix = "disk-access"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/disk_access"
+
+[[modules]]
+service = "disk_encryption_set"
+cli_prefix = "disk-encryption-set"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/disk_encryption_set"
+
+[[modules]]
+service = "image_gen"
+cli_prefix = "image"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/image"
+
+[[modules]]
+service = "snapshot_gen"
+cli_prefix = "snapshot"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/snapshot"
+
+[[modules]]
+service = "sig_gen"
+cli_prefix = "sig"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/sig"
+
+[[modules]]
+service = "ppg_gen"
+cli_prefix = "ppg"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/ppg"
+
+[[modules]]
+service = "capacity_reservation"
+cli_prefix = "capacity-reservation"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/capacity"
+
+[[modules]]
+service = "restore_point"
+cli_prefix = "restore-point"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/restore_point"
+
+[[modules]]
+service = "sshkey_gen"
+cli_prefix = "sshkey"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/sshkey"
+
+# --- CDN / Azure Front Door ---
+
+[[modules]]
+service = "afd"
+cli_prefix = "afd"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/cdn/aaz/latest/afd"
+
+[[modules]]
+service = "cdn_gen"
+cli_prefix = "cdn"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/cdn/aaz/latest/cdn"
+
+# --- NetApp Files ---
+
+[[modules]]
+service = "netappfiles_gen"
+cli_prefix = "netappfiles"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/netappfiles/aaz/latest/netappfiles"
+
+# --- Security ---
+
+[[modules]]
+service = "security_gen"
+cli_prefix = "security"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/security/aaz/latest/security"
+
+# --- Data Box Edge ---
+
+[[modules]]
+service = "databoxedge_gen"
+cli_prefix = "databoxedge"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/databoxedge/aaz/latest/databoxedge"
+
+# --- DevTest Labs ---
+
+[[modules]]
+service = "lab_gen"
+cli_prefix = "lab"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/lab/aaz/latest/lab"
+
+# --- Relay ---
+
+[[modules]]
+service = "relay_gen"
+cli_prefix = "relay"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/relay/aaz/latest/relay"
+
+# --- Cognitive Search ---
+
+[[modules]]
+service = "search_gen"
+cli_prefix = "search"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/search/aaz/latest/search"
+
+# --- Billing ---
+
+[[modules]]
+service = "billing_gen"
+cli_prefix = "billing"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/billing/aaz/latest/billing"
+
+# --- Consumption ---
+
+[[modules]]
+service = "consumption_gen"
+cli_prefix = "consumption"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/consumption/aaz/latest/consumption"
+
+# --- Policy Insights ---
+
+[[modules]]
+service = "policy_insights"
+cli_prefix = "policy-insights"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/policyinsights/aaz/latest/policy_insights"
+
+# --- Managed Services ---
+
+[[modules]]
+service = "managedservices_gen"
+cli_prefix = "managedservices"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/managedservices/aaz/latest/managedservices"
+
+# --- Compute Fleet ---
+
+[[modules]]
+service = "compute_fleet"
+cli_prefix = "fleet"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/computefleet/aaz/latest/compute_fleet"
+
+# --- Managed Identity ---
+
+[[modules]]
+service = "identity_gen"
+cli_prefix = "identity"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/identity/aaz/latest/identity"
+
+# --- Storage (additional AAZ) ---
+
+[[modules]]
+service = "storage_aaz"
+cli_prefix = "storage-aaz"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/storage/aaz/latest/storage"
+
+# --- AKS (partial AAZ) ---
+
+[[modules]]
+service = "aks_aaz"
+cli_prefix = "aks"
+aaz_subpath = "src/azure-cli/azure/cli/command_modules/acs/aaz/latest/aks"
