@@ -6,6 +6,13 @@
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+/// Convert a Path to a string using forward slashes so that generated
+/// `#[path = "..."]` attributes are valid Rust on Windows (backslashes
+/// are interpreted as escape sequences in string literals).
+fn forward_slash(p: &Path) -> String {
+    p.display().to_string().replace('\\', "/")
+}
+
 #[derive(Deserialize)]
 struct GenConfig {
     azure_cli_path: String,
@@ -91,7 +98,7 @@ fn main() {
         let svc_path = gen_dir.join(&svc.name).join("mod.rs");
         top_mod.push_str(&format!(
             "#[path = \"{}\"]\npub mod {};\n\n",
-            svc_path.display(),
+            forward_slash(&svc_path),
             svc.name.replace('-', "_")
         ));
     }
@@ -154,7 +161,7 @@ fn emit_group_tree(groups: &[aaz_gen::model::CommandGroup], dir: &std::path::Pat
                     let sub_sub_dir = sub_dir.join(&sub_mod_name);
                     sub_mod.push_str(&format!(
                         "#[path = \"{}\"]\npub mod {sub_mod_name};\n",
-                        sub_sub_dir.join("mod.rs").display()
+                        forward_slash(&sub_sub_dir.join("mod.rs"))
                     ));
                 }
             }
@@ -162,7 +169,7 @@ fn emit_group_tree(groups: &[aaz_gen::model::CommandGroup], dir: &std::path::Pat
 
             mod_rs.push_str(&format!(
                 "#[path = \"{}\"]\npub mod {mod_name};\n",
-                sub_dir.join("mod.rs").display()
+                forward_slash(&sub_dir.join("mod.rs"))
             ));
         }
     }
@@ -193,7 +200,7 @@ fn write_group_dir(group: &aaz_gen::model::CommandGroup, dir: &std::path::Path) 
             write_group_dir(sub, &sub_dir);
             mod_content.push_str(&format!(
                 "#[path = \"{}\"]\npub mod {sub_name};\n",
-                sub_dir.join("mod.rs").display()
+                forward_slash(&sub_dir.join("mod.rs"))
             ));
         }
     }
