@@ -51,6 +51,7 @@ use cli::{
     FunctionappDeploymentCommands, FunctionappDeploymentSourceCommands,
     FunctionappPlanCommands, FunctionappDeploymentSlotCommands,
     FunctionappVnetIntegrationCommands, FunctionappScaleConfigCommands,
+    RoleCommands, RoleAssignmentCommands, RoleDefinitionCommands,
 };
 
 type CmdResult = error::Result<Option<serde_json::Value>>;
@@ -1366,6 +1367,78 @@ async fn main() {
                 }
                 KeyvaultSecretCommands::Delete(args) => {
                     cmd_handlers::wrap(crate::commands::keyvault::secret_delete(&args.vault_name, &args.name).await)
+                }
+            },
+        },
+        Commands::Role(sub) => match sub {
+            RoleCommands::Assignment(asub) => match asub {
+                RoleAssignmentCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::role::assignment_list(
+                        args.scope.as_deref(),
+                        args.resource_group.as_deref(),
+                        args.assignee.as_deref(),
+                        args.role.as_deref(),
+                        args.include_inherited,
+                        args.all,
+                    ).await)
+                }
+                RoleAssignmentCommands::Create(args) => {
+                    let assignee_id = args.assignee_object_id.as_deref()
+                        .or(args.assignee.as_deref());
+                    match assignee_id {
+                        Some(id) => cmd_handlers::wrap(crate::commands::role::assignment_create(
+                            &args.scope,
+                            &args.role,
+                            id,
+                            args.assignee_principal_type.as_deref(),
+                            args.name.as_deref(),
+                            args.description.as_deref(),
+                            args.condition.as_deref(),
+                            args.condition_version.as_deref(),
+                        ).await),
+                        None => Err(crate::error::AzrsError::General(
+                            "Either --assignee or --assignee-object-id is required".into(),
+                        )),
+                    }
+                }
+                RoleAssignmentCommands::Delete(args) => {
+                    if !args.yes && !cmd_handlers::confirm("delete role assignment(s)") {
+                        return;
+                    }
+                    cmd_handlers::wrap_none(crate::commands::role::assignment_delete(
+                        args.scope.as_deref(),
+                        args.resource_group.as_deref(),
+                        args.assignee.as_deref(),
+                        args.role.as_deref(),
+                        args.ids.as_deref(),
+                    ).await)
+                }
+            },
+            RoleCommands::Definition(dsub) => match dsub {
+                RoleDefinitionCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::role::definition_list(
+                        args.scope.as_deref(),
+                        args.resource_group.as_deref(),
+                        args.name.as_deref(),
+                        args.custom_role_only,
+                    ).await)
+                }
+                RoleDefinitionCommands::Create(args) => {
+                    cmd_handlers::wrap(crate::commands::role::definition_create(
+                        &args.role_definition,
+                    ).await)
+                }
+                RoleDefinitionCommands::Update(args) => {
+                    cmd_handlers::wrap(crate::commands::role::definition_update(
+                        &args.role_definition,
+                    ).await)
+                }
+                RoleDefinitionCommands::Delete(args) => {
+                    cmd_handlers::wrap_none(crate::commands::role::definition_delete(
+                        args.scope.as_deref(),
+                        args.resource_group.as_deref(),
+                        &args.name,
+                    ).await)
                 }
             },
         },

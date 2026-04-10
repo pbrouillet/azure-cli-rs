@@ -16,6 +16,7 @@ pub mod management_group;
 pub mod network;
 pub mod provider;
 pub mod resource;
+pub mod role;
 pub mod stack;
 pub mod staticwebapp;
 pub mod storage;

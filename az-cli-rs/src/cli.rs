@@ -146,6 +146,10 @@ pub enum Commands {
     #[command(subcommand)]
     Logicapp(LogicappCommands),
 
+    /// Manage role-based access control (RBAC)
+    #[command(subcommand)]
+    Role(RoleCommands),
+
     /// Manage storage accounts
     #[command(subcommand)]
     Storage(StorageCommands),
@@ -2226,6 +2230,158 @@ pub struct CloudShowArgs {
 #[derive(clap::Args)]
 pub struct CloudSetArgs {
     /// Cloud name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+// --- Role (RBAC) ---
+
+#[derive(Subcommand)]
+pub enum RoleCommands {
+    /// Manage role assignments
+    #[command(subcommand)]
+    Assignment(RoleAssignmentCommands),
+    /// Manage role definitions
+    #[command(subcommand)]
+    Definition(RoleDefinitionCommands),
+}
+
+#[derive(Subcommand)]
+pub enum RoleAssignmentCommands {
+    /// List role assignments
+    List(RoleAssignmentListArgs),
+    /// Create a role assignment
+    Create(RoleAssignmentCreateArgs),
+    /// Delete role assignments
+    Delete(RoleAssignmentDeleteArgs),
+}
+
+#[derive(clap::Args)]
+pub struct RoleAssignmentListArgs {
+    /// Scope (defaults to current subscription)
+    #[arg(long)]
+    pub scope: Option<String>,
+    /// Resource group (used to build scope if --scope not set)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+    /// Filter by assignee object ID
+    #[arg(long)]
+    pub assignee: Option<String>,
+    /// Filter by role name or ID
+    #[arg(long)]
+    pub role: Option<String>,
+    /// Include inherited assignments
+    #[arg(long)]
+    pub include_inherited: bool,
+    /// Show all assignments (including inherited)
+    #[arg(long)]
+    pub all: bool,
+}
+
+#[derive(clap::Args)]
+pub struct RoleAssignmentCreateArgs {
+    /// Role name or ID (e.g. "Contributor", "Reader")
+    #[arg(long)]
+    pub role: String,
+    /// Scope for the assignment
+    #[arg(long)]
+    pub scope: String,
+    /// Object ID of the assignee (user, group, or service principal)
+    #[arg(long)]
+    pub assignee_object_id: Option<String>,
+    /// Display name, email, or object ID of the assignee
+    #[arg(long)]
+    pub assignee: Option<String>,
+    /// Principal type (User, Group, ServicePrincipal, ForeignGroup)
+    #[arg(long)]
+    pub assignee_principal_type: Option<String>,
+    /// Assignment name (GUID, auto-generated if not specified)
+    #[arg(short, long)]
+    pub name: Option<String>,
+    /// Description of the role assignment
+    #[arg(long)]
+    pub description: Option<String>,
+    /// Condition for the role assignment (ABAC)
+    #[arg(long)]
+    pub condition: Option<String>,
+    /// Condition version (defaults to 2.0 if --condition is set)
+    #[arg(long)]
+    pub condition_version: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct RoleAssignmentDeleteArgs {
+    /// Scope
+    #[arg(long)]
+    pub scope: Option<String>,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+    /// Filter by assignee object ID
+    #[arg(long)]
+    pub assignee: Option<String>,
+    /// Filter by role name or ID
+    #[arg(long)]
+    pub role: Option<String>,
+    /// Assignment resource IDs to delete directly
+    #[arg(long, num_args = 1..)]
+    pub ids: Option<Vec<String>>,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(Subcommand)]
+pub enum RoleDefinitionCommands {
+    /// List role definitions
+    List(RoleDefinitionListArgs),
+    /// Create a custom role definition
+    Create(RoleDefinitionCreateArgs),
+    /// Update a custom role definition
+    Update(RoleDefinitionUpdateArgs),
+    /// Delete a custom role definition
+    Delete(RoleDefinitionDeleteArgs),
+}
+
+#[derive(clap::Args)]
+pub struct RoleDefinitionListArgs {
+    /// Scope (defaults to current subscription)
+    #[arg(long)]
+    pub scope: Option<String>,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+    /// Filter by role name
+    #[arg(short, long)]
+    pub name: Option<String>,
+    /// Only show custom role definitions
+    #[arg(long)]
+    pub custom_role_only: bool,
+}
+
+#[derive(clap::Args)]
+pub struct RoleDefinitionCreateArgs {
+    /// JSON role definition (inline string or @filename)
+    #[arg(long)]
+    pub role_definition: String,
+}
+
+#[derive(clap::Args)]
+pub struct RoleDefinitionUpdateArgs {
+    /// JSON role definition (inline string or @filename)
+    #[arg(long)]
+    pub role_definition: String,
+}
+
+#[derive(clap::Args)]
+pub struct RoleDefinitionDeleteArgs {
+    /// Scope (defaults to current subscription)
+    #[arg(long)]
+    pub scope: Option<String>,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+    /// Role name to delete
     #[arg(short, long)]
     pub name: String,
 }
