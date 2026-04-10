@@ -1,0 +1,13 @@
+# Resource group parity tests
+# Prerequisites: logged in, at least one resource group exists.
+
+[defaults]
+ignore_fields = ["id", "managedBy", "tags"]
+
+[[test]]
+name = "group-list"
+command = "group list"
+
+[[test]]
+name = "group-list-tag"
+command = "group list --tag environment"

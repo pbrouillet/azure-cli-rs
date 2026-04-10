@@ -1,0 +1,14 @@
+/home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/deps/serde-a2343c3e76eac560.d: /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/build/serde-0ead87f5e306ffc7/out/private.rs
+
+/home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/deps/libserde-a2343c3e76eac560.rlib: /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/build/serde-0ead87f5e306ffc7/out/private.rs
+
+/home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/deps/libserde-a2343c3e76eac560.rmeta: /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/build/serde-0ead87f5e306ffc7/out/private.rs
+
+/home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/pierrickc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/build/serde-0ead87f5e306ffc7/out/private.rs:
+
+# env-dep:OUT_DIR=/home/pierrickc/src/azclirs/az-cli-rs/tools/az_parity/target/debug/build/serde-0ead87f5e306ffc7/out

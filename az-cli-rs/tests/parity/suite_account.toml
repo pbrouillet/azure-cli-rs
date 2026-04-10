@@ -1,0 +1,20 @@
+# Account / login state parity tests
+# These tests verify account-related commands produce equivalent output.
+# Prerequisites: both az and azrs must be logged in to the same subscription.
+
+[defaults]
+ignore_fields = ["environmentName", "homeTenantId", "managedByTenants"]
+
+[[test]]
+name = "account-show"
+command = "account show"
+
+[[test]]
+name = "account-list"
+command = "account list"
+ignore_fields = ["managedByTenants"]
+
+[[test]]
+name = "account-get-access-token"
+command = "account get-access-token"
+ignore_fields = ["accessToken", "expiresOn", "expires_on", "tokenType", "token_type"]

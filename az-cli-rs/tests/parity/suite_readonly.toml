@@ -1,0 +1,31 @@
+# Read-only parity tests across multiple services
+# These are safe to run against any subscription — no mutations.
+
+[defaults]
+ignore_fields = ["id", "etag", "systemData", "resourceGuid"]
+
+[[test]]
+name = "group-list"
+command = "group list"
+
+[[test]]
+name = "network-vnet-list"
+command = "network vnet list"
+
+[[test]]
+name = "network-nsg-list"
+command = "network nsg list"
+
+[[test]]
+name = "vm-list"
+command = "vm list"
+
+[[test]]
+name = "storage-account-list"
+command = "storage account list"
+ignore_fields = ["primaryEndpoints", "secondaryEndpoints", "keyCreationTime", "geoReplicationStats"]
+
+[[test]]
+name = "policy-definition-list"
+command = "policy definition list"
+ignore_fields = ["metadata", "systemData"]
