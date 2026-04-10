@@ -15,14 +15,17 @@ mod selector;
 #[cfg(test)]
 pub mod testing;
 
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches, Parser};
 use cli::{
     AccountCommands, AppserviceCommands, AppservicePlanCommands, AppserviceAseCommands,
     AppserviceDomainCommands, AppservicePlanIdentityCommands,
     Cli, Commands, ConfigCommands,
     DeploymentCommands, DeploymentOperationCommands, DeploymentScopeCommands,
     DeploymentScriptsCommands, FeatureCommands, FeatureRegistrationCommands, GroupCommands,
-    KeyvaultCommands, KeyvaultSecretCommands, LockCommands, ManagedappCommands,
+    KeyvaultCommands, KeyvaultSecretCommands, LockCommands,
+    LogicappCommands, LogicappConfigCommands, LogicappConfigAppsettingsCommands,
+    LogicappDeploymentCommands, LogicappDeploymentSourceCommands,
+    ManagedappCommands,
     ManagedappDefinitionCommands, ManagementGroupCommands, ManagementGroupEntitiesCommands,
     ManagementGroupHierarchySettingsCommands, ManagementGroupSubscriptionCommands,
     ManagementGroupTenantBackfillCommands, ProviderCommands, ProviderOperationCommands,
@@ -30,12 +33,19 @@ use cli::{
     StackScopeCommands, StaticwebappAppsettingsCommands, StaticwebappCommands,
     StaticwebappEnvironmentCommands, StaticwebappHostnameCommands, StorageAccountCommands,
     StorageCommands, TagCommands, TsCommands,
+    VmCommands, VmDiskCommands, VmIdentityCommands, VmUserCommands, VmNicCommands,
+    VmImageCommands, VmEncryptionCommands,
+    VmssCommands, VmssIdentityCommands,
     WebappCommands, WebappConfigAccessRestrictionCommands, WebappConfigAppsettingsCommands,
     WebappConfigBackupCommands, WebappConfigCommands, WebappConfigConnstrCommands,
     WebappConfigContainerCommands, WebappConfigHostnameCommands, WebappConfigSslCommands,
-    WebappCorsCommands, WebappDeploymentCommands, WebappDeploymentContainerCommands,
+    WebappCorsCommands, WebappDeletedCommands, WebappDeploymentCommands,
+    WebappDeploymentContainerCommands,
     WebappDeploymentGithubActionsCommands, WebappDeploymentSlotCommands,
     WebappDeploymentSourceCommands, WebappDeploymentUserCommands, WebappIdentityCommands,
+    WebappLogCommands, WebappTrafficRoutingCommands,
+    WebappVnetIntegrationCommands, WebappWebjobContinuousCommands,
+    WebappWebjobTriggeredCommands,
     FunctionappCommands, FunctionappConfigCommands, FunctionappConfigAppsettingsCommands,
     FunctionappKeysCommands, FunctionappFunctionCommands, FunctionappFunctionKeysCommands,
     FunctionappDeploymentCommands, FunctionappDeploymentSourceCommands,
@@ -45,12 +55,34 @@ use cli::{
 
 type CmdResult = error::Result<Option<serde_json::Value>>;
 
+/// Recursively sort all subcommands alphabetically by name.
+fn sort_subcommands(cmd: clap::Command) -> clap::Command {
+    let mut names: Vec<String> = cmd
+        .get_subcommands()
+        .map(|s| s.get_name().to_string())
+        .collect();
+    names.sort();
+    let mut cmd = cmd;
+    for (i, name) in names.iter().enumerate() {
+        cmd = cmd.mut_subcommand(name, |sub| sort_subcommands(sub).display_order(i));
+    }
+    cmd
+}
+
 #[tokio::main]
 async fn main() {
-    let cli = Cli::parse();
+    let cmd = sort_subcommands(Cli::command());
+    let matches = cmd.get_matches();
+    let cli = Cli::from_arg_matches(&matches).expect("failed to parse CLI args");
 
     // Apply global flags
     commands::set_debug(cli.global.debug);
+    if cli.global.verbose {
+        commands::set_verbose(true);
+    }
+    if cli.global.only_show_errors {
+        commands::set_only_show_errors(true);
+    }
     commands::set_subscription_override(cli.global.subscription.clone());
 
     // Resolve output format: CLI flag > config default > json
@@ -135,6 +167,13 @@ async fn main() {
             );
             Ok(None)
         }
+        Commands::Find(args) => cmd_handlers::find(&args.query).await,
+        Commands::Configure => cmd_handlers::configure().await,
+        Commands::Cloud(sub) => match sub {
+            cli::CloudCommands::List => cmd_handlers::cloud_list(),
+            cli::CloudCommands::Show(args) => cmd_handlers::cloud_show(&args.name),
+            cli::CloudCommands::Set(args) => cmd_handlers::cloud_set(&args.name),
+        },
         Commands::Group(sub) => match sub {
             GroupCommands::Create(args) => {
                 cmd_handlers::wrap(crate::commands::group::create(&args.name, &args.location, args.tags.as_deref()).await)
@@ -754,6 +793,72 @@ async fn main() {
                     }
                 },
             },
+            WebappCommands::VnetIntegration(vnet_sub) => match vnet_sub {
+                WebappVnetIntegrationCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::webapp::vnet_integration_list(&args.resource_group, &args.name).await)
+                }
+                WebappVnetIntegrationCommands::Add(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::vnet_integration_add(&args.resource_group, &args.name, &args.vnet, &args.subnet).await)
+                }
+                WebappVnetIntegrationCommands::Remove(args) => {
+                    cmd_handlers::wrap_none(crate::commands::webapp::vnet_integration_remove(&args.resource_group, &args.name, &args.vnet).await)
+                }
+            },
+            WebappCommands::Log(log_sub) => match log_sub {
+                WebappLogCommands::Config(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::log_config(&args.resource_group, &args.name, args.application_logging.as_deref(), args.web_server_logging.as_deref(), args.level.as_deref()).await)
+                }
+                WebappLogCommands::Download(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::log_download(&args.resource_group, &args.name).await)
+                }
+                WebappLogCommands::Tail(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::log_tail(&args.resource_group, &args.name).await)
+                }
+            },
+            WebappCommands::Deleted(del_sub) => match del_sub {
+                WebappDeletedCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::webapp::deleted_list(args.resource_group.as_deref()).await)
+                }
+                WebappDeletedCommands::Restore(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::deleted_restore(&args.resource_group, &args.name, &args.deleted_id).await)
+                }
+            },
+            WebappCommands::WebjobContinuous(wjc_sub) => match wjc_sub {
+                WebappWebjobContinuousCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::webapp::webjob_continuous_list(&args.resource_group, &args.name).await)
+                }
+                WebappWebjobContinuousCommands::Start(args) => {
+                    cmd_handlers::wrap_none(crate::commands::webapp::webjob_continuous_start(&args.resource_group, &args.name, &args.webjob_name).await)
+                }
+                WebappWebjobContinuousCommands::Stop(args) => {
+                    cmd_handlers::wrap_none(crate::commands::webapp::webjob_continuous_stop(&args.resource_group, &args.name, &args.webjob_name).await)
+                }
+                WebappWebjobContinuousCommands::Remove(args) => {
+                    cmd_handlers::wrap_none(crate::commands::webapp::webjob_continuous_remove(&args.resource_group, &args.name, &args.webjob_name).await)
+                }
+            },
+            WebappCommands::WebjobTriggered(wjt_sub) => match wjt_sub {
+                WebappWebjobTriggeredCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::webapp::webjob_triggered_list(&args.resource_group, &args.name).await)
+                }
+                WebappWebjobTriggeredCommands::Run(args) => {
+                    cmd_handlers::wrap_none(crate::commands::webapp::webjob_triggered_run(&args.resource_group, &args.name, &args.webjob_name).await)
+                }
+                WebappWebjobTriggeredCommands::Remove(args) => {
+                    cmd_handlers::wrap_none(crate::commands::webapp::webjob_triggered_remove(&args.resource_group, &args.name, &args.webjob_name).await)
+                }
+                WebappWebjobTriggeredCommands::Log(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::webjob_triggered_log(&args.resource_group, &args.name, &args.webjob_name).await)
+                }
+            },
+            WebappCommands::TrafficRouting(tr_sub) => match tr_sub {
+                WebappTrafficRoutingCommands::Set(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::traffic_routing_set(&args.resource_group, &args.name, &args.distribution).await)
+                }
+                WebappTrafficRoutingCommands::Clear(args) => {
+                    cmd_handlers::wrap(crate::commands::webapp::traffic_routing_clear(&args.resource_group, &args.name).await)
+                }
+            },
         },
         Commands::Functionapp(sub) => match sub {
             FunctionappCommands::List(args) => {
@@ -948,6 +1053,62 @@ async fn main() {
                 }
             },
         },
+        Commands::Logicapp(sub) => match sub {
+            LogicappCommands::List(args) => {
+                cmd_handlers::wrap_list(crate::commands::logicapp::list(args.resource_group.as_deref()).await)
+            }
+            LogicappCommands::Show(args) => {
+                cmd_handlers::wrap(crate::commands::logicapp::show(&args.resource_group, &args.name).await)
+            }
+            LogicappCommands::Create(args) => {
+                cmd_handlers::wrap(crate::commands::logicapp::create(
+                    &args.resource_group,
+                    &args.name,
+                    &args.plan,
+                    &args.location,
+                    args.storage_account.as_deref(),
+                    args.tags.as_deref(),
+                ).await)
+            }
+            LogicappCommands::Delete(args) => {
+                if !args.yes && !cmd_handlers::confirm(&format!("delete logic app '{}'", args.name)) {
+                    return;
+                }
+                cmd_handlers::wrap_none(crate::commands::logicapp::delete(&args.resource_group, &args.name).await)
+            }
+            LogicappCommands::Stop(args) => {
+                cmd_handlers::wrap_none(crate::commands::logicapp::stop(&args.resource_group, &args.name).await)
+            }
+            LogicappCommands::Start(args) => {
+                cmd_handlers::wrap_none(crate::commands::logicapp::start(&args.resource_group, &args.name).await)
+            }
+            LogicappCommands::Restart(args) => {
+                cmd_handlers::wrap_none(crate::commands::logicapp::restart(&args.resource_group, &args.name).await)
+            }
+            LogicappCommands::Update(args) => {
+                cmd_handlers::wrap(crate::commands::logicapp::update(&args.resource_group, &args.name, args.set.as_deref()).await)
+            }
+            LogicappCommands::Config(cfg_sub) => match cfg_sub {
+                LogicappConfigCommands::Appsettings(as_sub) => match as_sub {
+                    LogicappConfigAppsettingsCommands::List(args) => {
+                        cmd_handlers::wrap(crate::commands::logicapp::config_appsettings_list(&args.resource_group, &args.name).await)
+                    }
+                    LogicappConfigAppsettingsCommands::Set(args) => {
+                        cmd_handlers::wrap(crate::commands::logicapp::config_appsettings_set(&args.resource_group, &args.name, &args.settings).await)
+                    }
+                    LogicappConfigAppsettingsCommands::Delete(args) => {
+                        cmd_handlers::wrap(crate::commands::logicapp::config_appsettings_delete(&args.resource_group, &args.name, &args.setting_names).await)
+                    }
+                },
+            },
+            LogicappCommands::Deployment(dep_sub) => match dep_sub {
+                LogicappDeploymentCommands::Source(src_sub) => match src_sub {
+                    LogicappDeploymentSourceCommands::ConfigZip(args) => {
+                        cmd_handlers::wrap(crate::commands::logicapp::deployment_source_config_zip(&args.resource_group, &args.name, &args.src).await)
+                    }
+                },
+            },
+        },
         Commands::Appservice(sub) => match sub {
             AppserviceCommands::ListLocations => {
                 cmd_handlers::wrap(crate::commands::appservice::list_locations().await)
@@ -1138,7 +1299,48 @@ async fn main() {
                 StorageAccountCommands::Keys(args) => {
                     cmd_handlers::wrap(crate::commands::storage::keys_list(&args.name, &args.resource_group).await)
                 }
+                // Dispatch generated account sub-commands through the generated storage-aaz dispatch
+                StorageAccountCommands::FileServiceUsage(args) => {
+                    use crate::generated::{StorageAazCommands, StorageAazAccountCommands};
+                    crate::generated::dispatch_storage_aaz(
+                        StorageAazCommands::Account(StorageAazAccountCommands::FileServiceUsage(args)),
+                        "storage_aaz",
+                    ).await
+                }
+                StorageAccountCommands::Migration(sub) => {
+                    use crate::generated::{StorageAazCommands, StorageAazAccountCommands};
+                    crate::generated::dispatch_storage_aaz(
+                        StorageAazCommands::Account(StorageAazAccountCommands::Migration(sub)),
+                        "storage_aaz",
+                    ).await
+                }
+                StorageAccountCommands::NetworkSecurityPerimeterConfiguration(sub) => {
+                    use crate::generated::{StorageAazCommands, StorageAazAccountCommands};
+                    crate::generated::dispatch_storage_aaz(
+                        StorageAazCommands::Account(StorageAazAccountCommands::NetworkSecurityPerimeterConfiguration(sub)),
+                        "storage_aaz",
+                    ).await
+                }
             },
+            // Dispatch generated storage subgroups
+            StorageCommands::Blob(sub) => {
+                crate::generated::dispatch_storage_aaz(
+                    crate::generated::StorageAazCommands::Blob(sub),
+                    "storage_aaz",
+                ).await
+            }
+            StorageCommands::ShareRm(sub) => {
+                crate::generated::dispatch_storage_aaz(
+                    crate::generated::StorageAazCommands::ShareRm(sub),
+                    "storage_aaz",
+                ).await
+            }
+            StorageCommands::Sku(sub) => {
+                crate::generated::dispatch_storage_aaz(
+                    crate::generated::StorageAazCommands::Sku(sub),
+                    "storage_aaz",
+                ).await
+            }
         },
         Commands::Config(sub) => match sub {
             ConfigCommands::Set(args) => {
@@ -1167,6 +1369,8 @@ async fn main() {
                 }
             },
         },
+        Commands::Vm(sub) => dispatch_vm(sub).await,
+        Commands::Vmss(sub) => dispatch_vmss(sub).await,
         Commands::Generated(sub) => {
             crate::generated::dispatch_generated(sub).await
         },
@@ -1312,16 +1516,64 @@ mod cmd_handlers {
         let cloud = CloudConfig::default();
         let authority_host = &cloud.active_directory;
 
+        // --- Managed identity login ---
+        if args.use_identity {
+            eprintln!("Logging in with managed identity...");
+            let resource = cloud.active_directory_resource_id.trim_end_matches('/');
+            let token_response = crate::auth::managed_identity::login(
+                resource,
+                args.client_id.as_deref(),
+                args.object_id.as_deref(),
+                args.resource_id.as_deref(),
+            )
+            .await?;
+
+            let identity_name = args.client_id.as_deref()
+                .or(args.object_id.as_deref())
+                .or(args.resource_id.as_deref())
+                .unwrap_or("systemAssignedIdentity");
+
+            let mut cache = TokenCache::load(&cloud)?;
+            // Use "organizations" as default tenant — ARM will resolve
+            cache.store_tokens_for(&token_response, identity_name, "organizations")?;
+
+            // Discover subscriptions
+            eprintln!("Retrieving subscriptions...");
+            let arm = ArmClient::new(&cloud);
+            let subscriptions = arm
+                .discover_subscriptions_for_tenant("organizations", &token_response.access_token)
+                .await
+                .unwrap_or_default();
+
+            if subscriptions.is_empty() && !args.allow_no_subscriptions {
+                eprintln!("No subscriptions found. Use --allow-no-subscriptions to log in without one.");
+            }
+
+            let mi_subs: Vec<crate::profile::Subscription> = subscriptions
+                .into_iter()
+                .map(|mut s| {
+                    s.user = crate::profile::SubscriptionUser {
+                        name: identity_name.to_string(),
+                        user_type: "managedIdentity".to_string(),
+                    };
+                    s
+                })
+                .collect();
+
+            let mut profile = Profile::load()?;
+            profile.merge_subscriptions(mi_subs, &None, &cloud.environment_name);
+            profile.save()?;
+            cache.save()?;
+
+            output::print_login_summary(&profile);
+            return Ok(None);
+        }
+
         if args.service_principal {
             // Service principal login
             let client_id = args.username.as_deref().ok_or_else(|| {
                 crate::error::AzrsError::General(
                     "Service principal login requires --username/-u (client/app ID).".into(),
-                )
-            })?;
-            let client_secret = args.password.as_deref().ok_or_else(|| {
-                crate::error::AzrsError::General(
-                    "Service principal login requires --password/-p (client secret).".into(),
                 )
             })?;
             let tenant = args.tenant.as_deref().ok_or_else(|| {
@@ -1334,6 +1586,64 @@ mod cmd_handlers {
             let scopes = args
                 .scope
                 .unwrap_or_else(|| vec![cloud.default_scope()]);
+
+            // --- Certificate auth ---
+            if let Some(ref cert_path) = args.certificate {
+                eprintln!("Logging in as service principal with certificate...");
+                let token_response = crate::auth::certificate::login_with_certificate(
+                    &authority, client_id, cert_path,
+                    args.certificate_password.as_deref(), &scopes,
+                )
+                .await?;
+
+                let mut cache = TokenCache::load(&cloud)?;
+                cache.store_tokens_for(&token_response, client_id, tenant)?;
+
+                let mut sp_store = crate::auth::service_principal::SpStore::load();
+                sp_store.upsert(crate::auth::service_principal::SpEntry {
+                    client_id: client_id.to_string(),
+                    tenant: tenant.to_string(),
+                    client_secret: None,
+                    certificate: Some(cert_path.to_string()),
+                });
+                sp_store.save()?;
+
+                eprintln!("Retrieving subscriptions...");
+                let arm = ArmClient::new(&cloud);
+                let subscriptions = arm
+                    .discover_subscriptions_for_tenant(tenant, &token_response.access_token)
+                    .await?;
+
+                if subscriptions.is_empty() && !args.allow_no_subscriptions {
+                    eprintln!("No subscriptions found. Use --allow-no-subscriptions to log in without one.");
+                }
+
+                let sp_subs: Vec<crate::profile::Subscription> = subscriptions
+                    .into_iter()
+                    .map(|mut s| {
+                        s.user = crate::profile::SubscriptionUser {
+                            name: client_id.to_string(),
+                            user_type: "servicePrincipal".to_string(),
+                        };
+                        s
+                    })
+                    .collect();
+
+                let mut profile = Profile::load()?;
+                profile.merge_subscriptions(sp_subs, &None, &cloud.environment_name);
+                profile.save()?;
+                cache.save()?;
+
+                output::print_login_summary(&profile);
+                return Ok(None);
+            }
+
+            // --- Client secret auth ---
+            let client_secret = args.password.as_deref().ok_or_else(|| {
+                crate::error::AzrsError::General(
+                    "Service principal login requires --password/-p (client secret) or --certificate.".into(),
+                )
+            })?;
 
             eprintln!("Logging in as service principal...");
             let token_response = crate::auth::service_principal::login_with_secret(
@@ -1387,7 +1697,39 @@ mod cmd_handlers {
             return Ok(None);
         }
 
-        // Interactive / device code login
+        // Interactive / device code / Cloud Shell login
+        // Auto-detect Cloud Shell environment
+        if crate::auth::cloud_shell::is_cloud_shell() && !args.use_device_code {
+            eprintln!("Logging in via Cloud Shell...");
+            let resource = cloud.active_directory_resource_id.trim_end_matches('/');
+            let token_response = crate::auth::cloud_shell::login(resource).await?;
+
+            let username = "cloudShellUser";
+            let tenant_str = args.tenant.as_deref().unwrap_or("organizations");
+
+            let mut cache = TokenCache::load(&cloud)?;
+            cache.store_tokens_for(&token_response, username, tenant_str)?;
+
+            eprintln!("Retrieving subscriptions...");
+            let arm = ArmClient::new(&cloud);
+            let subscriptions = arm
+                .discover_subscriptions_for_tenant(tenant_str, &token_response.access_token)
+                .await
+                .unwrap_or_default();
+
+            if subscriptions.is_empty() && !args.allow_no_subscriptions {
+                eprintln!("No subscriptions found. Use --allow-no-subscriptions to log in without one.");
+            }
+
+            let mut profile = Profile::load()?;
+            profile.merge_subscriptions(subscriptions, &None, &cloud.environment_name);
+            profile.save()?;
+            cache.save()?;
+
+            output::print_login_summary(&profile);
+            return Ok(None);
+        }
+
         let tenant = args.tenant.as_deref().unwrap_or("organizations");
         let authority = format!("{authority_host}/{tenant}");
         let scopes = args.scope.unwrap_or_else(|| vec![cloud.default_scope()]);
@@ -1549,11 +1891,312 @@ mod cmd_handlers {
         Ok(None) // rest handles its own output
     }
 
+    pub async fn find(query: &str) -> CmdResult {
+        let client = reqwest::Client::new();
+        let resp = client
+            .get("https://app.aladdin.microsoft.com/api/v1.0/examples")
+            .query(&[("query", query), ("clientId", "azrs")])
+            .send()
+            .await;
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                let body: serde_json::Value = r.json().await.unwrap_or_default();
+                if let Some(items) = body.as_array() {
+                    if items.is_empty() {
+                        eprintln!("No results found for '{query}'.");
+                        return Ok(None);
+                    }
+                    for item in items {
+                        let title = item.get("title").and_then(|v| v.as_str()).unwrap_or("");
+                        let snippet = item.get("snippet").and_then(|v| v.as_str()).unwrap_or("");
+                        eprintln!("  {title}");
+                        if !snippet.is_empty() {
+                            eprintln!("    {snippet}");
+                        }
+                        eprintln!();
+                    }
+                    Ok(Some(body))
+                } else {
+                    Ok(Some(body))
+                }
+            }
+            _ => {
+                eprintln!("Unable to reach Azure CLI examples service.");
+                Ok(None)
+            }
+        }
+    }
+
+    pub async fn configure() -> CmdResult {
+        use std::io::{self, BufRead, Write};
+
+        eprintln!("Welcome to the Azure CLI (Rust) configuration wizard.");
+        eprintln!("Settings are saved to ~/.azure/config\n");
+
+        let config = crate::config::Config::load();
+
+        // Default output format
+        let current_output = config.default_output().unwrap_or("json");
+        eprint!("Default output format [{current_output}] (json/jsonc/table/tsv/yaml/yamlc/none): ");
+        io::stderr().flush().ok();
+        if let Some(Ok(line)) = io::stdin().lock().lines().next() {
+            let val = line.trim();
+            if !val.is_empty() {
+                crate::config::config_set(&[format!("core.output={val}")]).ok();
+            }
+        }
+
+        // Default location
+        let current_location = config.default_location().unwrap_or("(none)");
+        eprint!("Default location [{current_location}]: ");
+        io::stderr().flush().ok();
+        if let Some(Ok(line)) = io::stdin().lock().lines().next() {
+            let val = line.trim();
+            if !val.is_empty() {
+                crate::config::config_set(&[format!("defaults.location={val}")]).ok();
+            }
+        }
+
+        // Default resource group
+        let current_group = config.default_group().unwrap_or("(none)");
+        eprint!("Default resource group [{current_group}]: ");
+        io::stderr().flush().ok();
+        if let Some(Ok(line)) = io::stdin().lock().lines().next() {
+            let val = line.trim();
+            if !val.is_empty() {
+                crate::config::config_set(&[format!("defaults.group={val}")]).ok();
+            }
+        }
+
+        eprintln!("\nConfiguration saved.");
+        Ok(None)
+    }
+
+    pub fn cloud_list() -> CmdResult {
+        let clouds = serde_json::json!([
+            { "name": "AzureCloud", "isActive": true },
+            { "name": "AzureChinaCloud", "isActive": false },
+            { "name": "AzureUSGovernment", "isActive": false },
+        ]);
+        Ok(Some(clouds))
+    }
+
+    pub fn cloud_show(name: &str) -> CmdResult {
+        let cloud = match name {
+            "AzureCloud" => crate::cloud::CloudConfig::azure_public(),
+            "AzureChinaCloud" => crate::cloud::CloudConfig::azure_china(),
+            "AzureUSGovernment" => crate::cloud::CloudConfig::azure_us_government(),
+            _ => return Err(crate::error::AzrsError::General(format!(
+                "Cloud '{name}' not found. Available: AzureCloud, AzureChinaCloud, AzureUSGovernment"
+            ))),
+        };
+        Ok(Some(serde_json::json!({
+            "name": name,
+            "endpoints": {
+                "activeDirectory": cloud.active_directory,
+                "resourceManager": cloud.resource_manager,
+                "activeDirectoryResourceId": cloud.active_directory_resource_id,
+            }
+        })))
+    }
+
+    pub fn cloud_set(name: &str) -> CmdResult {
+        match name {
+            "AzureCloud" | "AzureChinaCloud" | "AzureUSGovernment" => {
+                crate::config::config_set(&[format!("cloud.name={name}")]).ok();
+                eprintln!("Active cloud set to '{name}'.");
+                Ok(None)
+            }
+            _ => Err(crate::error::AzrsError::General(format!(
+                "Cloud '{name}' not found. Available: AzureCloud, AzureChinaCloud, AzureUSGovernment"
+            ))),
+        }
+    }
+
     pub async fn list_locations() -> Result<serde_json::Value> {
         let mut cmd = crate::commands::ArmCommand::new()?;
         let path = "/subscriptions/{subscriptionId}/locations?api-version=2024-03-01";
         let result = cmd.list(path).await?;
         cmd.save_cache()?;
         Ok(serde_json::Value::Array(result))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// VM dispatch
+// ---------------------------------------------------------------------------
+
+async fn dispatch_vm(sub: VmCommands) -> CmdResult {
+    use crate::commands::{vm, vm_ext};
+    match sub {
+        // Manual commands (vm.rs)
+        VmCommands::List(args) => cmd_handlers::wrap_list(vm::list(args.resource_group.as_deref()).await),
+        VmCommands::Show(args) => cmd_handlers::wrap(vm::show(&args.resource_group, &args.name).await),
+        VmCommands::Start(args) => cmd_handlers::wrap_none(vm::start(&args.resource_group, &args.name).await),
+        VmCommands::Stop(args) => cmd_handlers::wrap_none(vm::stop(&args.resource_group, &args.name).await),
+        VmCommands::Restart(args) => cmd_handlers::wrap_none(vm::restart(&args.resource_group, &args.name).await),
+        VmCommands::Deallocate(args) => cmd_handlers::wrap_none(vm::deallocate(&args.resource_group, &args.name).await),
+
+        // Manual commands (vm_ext.rs)
+        VmCommands::Create(args) => cmd_handlers::wrap(vm_ext::create(
+            &args.resource_group, &args.name, &args.image, &args.location,
+            args.size.as_deref(), args.admin_username.as_deref(), args.admin_password.as_deref(),
+            args.ssh_key_values.as_deref(), args.generate_ssh_keys,
+            args.os_type.as_deref(), args.tags.as_deref(),
+        ).await),
+        VmCommands::Update(args) => cmd_handlers::wrap(vm_ext::update(&args.resource_group, &args.name, &args.set).await),
+        VmCommands::GetInstanceView(args) => cmd_handlers::wrap(vm_ext::get_instance_view(&args.resource_group, &args.name).await),
+        VmCommands::Resize(args) => cmd_handlers::wrap(vm_ext::resize(&args.resource_group, &args.name, &args.size).await),
+        VmCommands::OpenPort(args) => cmd_handlers::wrap(vm_ext::open_port(&args.resource_group, &args.name, &args.port, args.priority).await),
+        VmCommands::AutoShutdown(args) => cmd_handlers::wrap(vm_ext::auto_shutdown(
+            &args.resource_group, &args.name, args.time.as_deref(), args.timezone.as_deref(), args.off,
+        ).await),
+        VmCommands::InstallPatches(args) => cmd_handlers::wrap(vm_ext::install_patches(
+            &args.resource_group, &args.name, &args.maximum_duration, &args.reboot_setting,
+        ).await),
+        VmCommands::ListIpAddresses(args) => cmd_handlers::wrap(vm_ext::list_ip_addresses(&args.resource_group, &args.name).await),
+
+        // Manual subgroups
+        VmCommands::Disk(sub) => match sub {
+            VmDiskCommands::Attach(args) => cmd_handlers::wrap(vm_ext::disk_attach(
+                &args.resource_group, &args.vm_name, &args.name, args.lun, args.size_gb, args.new,
+            ).await),
+            VmDiskCommands::Detach(args) => cmd_handlers::wrap(vm_ext::disk_detach(&args.resource_group, &args.vm_name, &args.name).await),
+        },
+        VmCommands::Identity(sub) => match sub {
+            VmIdentityCommands::Assign(args) => cmd_handlers::wrap(vm_ext::identity_assign(
+                &args.resource_group, &args.name, args.identities.as_deref(),
+            ).await),
+            VmIdentityCommands::Remove(args) => cmd_handlers::wrap(vm_ext::identity_remove(
+                &args.resource_group, &args.name, args.identities.as_deref(),
+            ).await),
+        },
+        VmCommands::User(sub) => match sub {
+            VmUserCommands::Update(args) => cmd_handlers::wrap(vm_ext::user_update(
+                &args.resource_group, &args.name, &args.username,
+                args.password.as_deref(), args.ssh_key_value.as_deref(),
+            ).await),
+            VmUserCommands::Delete(args) => cmd_handlers::wrap(vm_ext::user_delete(&args.resource_group, &args.name, &args.username).await),
+            VmUserCommands::ResetSsh(args) => cmd_handlers::wrap(vm_ext::user_reset_ssh(&args.resource_group, &args.name).await),
+        },
+        VmCommands::Nic(sub) => match sub {
+            VmNicCommands::Add(args) => cmd_handlers::wrap(vm_ext::nic_add(&args.resource_group, &args.vm_name, &args.nics).await),
+            VmNicCommands::Remove(args) => cmd_handlers::wrap(vm_ext::nic_remove(&args.resource_group, &args.vm_name, &args.nics).await),
+            VmNicCommands::Set(args) => cmd_handlers::wrap(vm_ext::nic_set(
+                &args.resource_group, &args.vm_name, &args.nics, args.primary_nic.as_deref(),
+            ).await),
+            VmNicCommands::List(args) => cmd_handlers::wrap(vm_ext::nic_list(&args.resource_group, &args.vm_name).await),
+        },
+        VmCommands::Image(sub) => match sub {
+            VmImageCommands::List(args) => cmd_handlers::wrap_list(vm_ext::image_list(&args.location, &args.publisher, &args.offer, &args.sku).await),
+            VmImageCommands::ListOffers(args) => cmd_handlers::wrap_list(vm_ext::image_list_offers(&args.location, &args.publisher).await),
+            VmImageCommands::ListPublishers(args) => cmd_handlers::wrap_list(vm_ext::image_list_publishers(&args.location).await),
+            VmImageCommands::ListSkus(args) => cmd_handlers::wrap_list(vm_ext::image_list_skus(&args.location, &args.publisher, &args.offer).await),
+            VmImageCommands::AcceptTerms(args) => cmd_handlers::wrap(vm_ext::image_accept_terms(&args.publisher, &args.offer, &args.plan).await),
+        },
+        VmCommands::Encryption(sub) => match sub {
+            VmEncryptionCommands::Enable(args) => cmd_handlers::wrap(vm_ext::encryption_enable(
+                &args.resource_group, &args.name, &args.disk_encryption_keyvault,
+                args.volume_type.as_deref(), args.key_encryption_key.as_deref(),
+                args.key_encryption_algorithm.as_deref(),
+            ).await),
+            VmEncryptionCommands::Disable(args) => cmd_handlers::wrap(vm_ext::encryption_disable(
+                &args.resource_group, &args.name, args.volume_type.as_deref(),
+            ).await),
+        },
+
+        // Generated commands — delegate to generated dispatch
+        VmCommands::AssessPatches(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::AssessPatches(args), "vm_gen").await,
+        VmCommands::Capture(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Capture(args), "vm_gen").await,
+        VmCommands::Convert(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Convert(args), "vm_gen").await,
+        VmCommands::Delete(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Delete(args), "vm_gen").await,
+        VmCommands::Generalize(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Generalize(args), "vm_gen").await,
+        VmCommands::ListSizes(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::ListSizes(args), "vm_gen").await,
+        VmCommands::ListVmResizeOptions(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::ListVmResizeOptions(args), "vm_gen").await,
+        VmCommands::MigrateToVmss(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::MigrateToVmss(args), "vm_gen").await,
+        VmCommands::PerformMaintenance(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::PerformMaintenance(args), "vm_gen").await,
+        VmCommands::Reapply(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Reapply(args), "vm_gen").await,
+        VmCommands::Redeploy(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Redeploy(args), "vm_gen").await,
+        VmCommands::Reimage(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Reimage(args), "vm_gen").await,
+        VmCommands::SimulateEviction(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::SimulateEviction(args), "vm_gen").await,
+        VmCommands::Wait(args) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Wait(args), "vm_gen").await,
+
+        // Generated subgroups
+        VmCommands::AvailabilitySet(sub) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::AvailabilitySet(sub), "vm_gen").await,
+        VmCommands::BootDiagnostics(sub) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::BootDiagnostics(sub), "vm_gen").await,
+        VmCommands::Extension(sub) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Extension(sub), "vm_gen").await,
+        VmCommands::Host(sub) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::Host(sub), "vm_gen").await,
+        VmCommands::RunCommand(sub) => crate::generated::dispatch_vm_gen(crate::generated::VmCommands::RunCommand(sub), "vm_gen").await,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// VMSS dispatch
+// ---------------------------------------------------------------------------
+
+async fn dispatch_vmss(sub: VmssCommands) -> CmdResult {
+    use crate::commands::vmss_ext;
+    match sub {
+        // Manual commands (vmss_ext.rs)
+        VmssCommands::Create(args) => cmd_handlers::wrap(vmss_ext::create(
+            &args.resource_group, &args.name, &args.image, &args.location,
+            args.instance_count, args.vm_sku.as_deref(), args.admin_username.as_deref(),
+            args.admin_password.as_deref(), args.upgrade_policy_mode.as_deref(),
+            args.tags.as_deref(),
+        ).await),
+        VmssCommands::Update(args) => cmd_handlers::wrap(vmss_ext::update(
+            &args.resource_group, &args.name, args.set.as_deref(), args.tags.as_deref(),
+        ).await),
+        VmssCommands::Scale(args) => cmd_handlers::wrap(vmss_ext::scale(&args.resource_group, &args.name, args.new_capacity).await),
+        VmssCommands::Deallocate(args) => cmd_handlers::wrap_none(vmss_ext::deallocate(
+            &args.resource_group, &args.name, args.instance_ids.as_deref(),
+        ).await),
+        VmssCommands::Restart(args) => cmd_handlers::wrap_none(vmss_ext::restart(
+            &args.resource_group, &args.name, args.instance_ids.as_deref(),
+        ).await),
+        VmssCommands::Stop(args) => cmd_handlers::wrap_none(vmss_ext::stop(
+            &args.resource_group, &args.name, args.instance_ids.as_deref(),
+        ).await),
+        VmssCommands::Reimage(args) => cmd_handlers::wrap_none(vmss_ext::reimage(
+            &args.resource_group, &args.name, args.instance_ids.as_deref(),
+        ).await),
+        VmssCommands::GetInstanceView(args) => cmd_handlers::wrap(vmss_ext::get_instance_view(&args.resource_group, &args.name).await),
+        VmssCommands::UpdateInstances(args) => cmd_handlers::wrap_none(vmss_ext::update_instances(
+            &args.resource_group, &args.name, &args.instance_ids,
+        ).await),
+        VmssCommands::ListInstanceConnectionInfo(args) => cmd_handlers::wrap(vmss_ext::list_instance_connection_info(&args.resource_group, &args.name).await),
+        VmssCommands::ListInstancePublicIps(args) => cmd_handlers::wrap_list(vmss_ext::list_instance_public_ips(&args.resource_group, &args.name).await),
+        VmssCommands::SetOrchestrationServiceState(args) => cmd_handlers::wrap_none(vmss_ext::set_orchestration_service_state(
+            &args.resource_group, &args.name, &args.service_name, &args.action,
+        ).await),
+
+        // Manual subgroups
+        VmssCommands::Identity(sub) => match sub {
+            VmssIdentityCommands::Assign(args) => cmd_handlers::wrap(vmss_ext::identity_assign(
+                &args.resource_group, &args.name, args.system_assigned, args.user_assigned.as_deref(),
+            ).await),
+            VmssIdentityCommands::Remove(args) => cmd_handlers::wrap(vmss_ext::identity_remove(
+                &args.resource_group, &args.name, args.system_assigned, args.user_assigned.as_deref(),
+            ).await),
+        },
+
+        // Generated commands — delegate to generated dispatch
+        VmssCommands::Delete(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::Delete(args), "vmss_gen").await,
+        VmssCommands::DeleteInstances(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::DeleteInstances(args), "vmss_gen").await,
+        VmssCommands::GetOsUpgradeHistory(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::GetOsUpgradeHistory(args), "vmss_gen").await,
+        VmssCommands::List(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::List(args), "vmss_gen").await,
+        VmssCommands::ListInstances(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::ListInstances(args), "vmss_gen").await,
+        VmssCommands::ListSkus(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::ListSkus(args), "vmss_gen").await,
+        VmssCommands::PerformMaintenance(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::PerformMaintenance(args), "vmss_gen").await,
+        VmssCommands::SimulateEviction(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::SimulateEviction(args), "vmss_gen").await,
+        VmssCommands::Start(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::Start(args), "vmss_gen").await,
+        VmssCommands::UpdateDomainWalk(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::UpdateDomainWalk(args), "vmss_gen").await,
+        VmssCommands::Wait(args) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::Wait(args), "vmss_gen").await,
+
+        // Generated subgroups
+        VmssCommands::Extension(sub) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::Extension(sub), "vmss_gen").await,
+        VmssCommands::Nic(sub) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::Nic(sub), "vmss_gen").await,
+        VmssCommands::RollingUpgrade(sub) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::RollingUpgrade(sub), "vmss_gen").await,
+        VmssCommands::RunCommand(sub) => crate::generated::dispatch_vmss_gen(crate::generated::VmssCommands::RunCommand(sub), "vmss_gen").await,
     }
 }

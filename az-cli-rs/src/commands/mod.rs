@@ -38,12 +38,28 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// Global debug flag — when set, ARM requests print method+URL+status to stderr.
 pub static DEBUG: AtomicBool = AtomicBool::new(false);
 
+/// Global verbose flag — intermediate level between normal and debug.
+pub static VERBOSE: AtomicBool = AtomicBool::new(false);
+
+/// Global only-show-errors flag — when set, suppress warnings and info messages.
+pub static ONLY_SHOW_ERRORS: AtomicBool = AtomicBool::new(false);
+
 /// Global subscription override (set from --subscription CLI arg).
 static SUBSCRIPTION_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 /// Set the global debug flag.
 pub fn set_debug(enabled: bool) {
     DEBUG.store(enabled, Ordering::Relaxed);
+}
+
+/// Set the global verbose flag.
+pub fn set_verbose(enabled: bool) {
+    VERBOSE.store(enabled, Ordering::Relaxed);
+}
+
+/// Set the global only-show-errors flag.
+pub fn set_only_show_errors(enabled: bool) {
+    ONLY_SHOW_ERRORS.store(enabled, Ordering::Relaxed);
 }
 
 /// Set the global subscription override.
@@ -199,9 +215,12 @@ impl ArmCommand {
         let url = self.arm_url(path)?;
         let token = self.bearer_token().await?;
         let debug = DEBUG.load(Ordering::Relaxed);
+        let verbose = VERBOSE.load(Ordering::Relaxed);
 
         if debug {
             eprintln!("DEBUG: {} {}", method, url);
+        } else if verbose {
+            eprintln!("VERBOSE: {} {}", method, url);
         }
 
         let start = std::time::Instant::now();
@@ -229,6 +248,9 @@ impl ArmCommand {
         if debug {
             let elapsed = start.elapsed();
             eprintln!("DEBUG: {} {} — {} ({:.0?})", method, url, resp.status, elapsed);
+        } else if verbose {
+            let elapsed = start.elapsed();
+            eprintln!("VERBOSE: {} {} — {} ({:.0?})", method, url, resp.status, elapsed);
         }
 
         Ok(resp)

@@ -29,6 +29,14 @@ pub struct GlobalArgs {
     /// Increase logging verbosity to show HTTP requests and responses
     #[arg(long, global = true)]
     pub debug: bool,
+
+    /// Increase logging verbosity (less than --debug)
+    #[arg(long, global = true)]
+    pub verbose: bool,
+
+    /// Only show errors, suppressing warnings and info messages
+    #[arg(long, global = true)]
+    pub only_show_errors: bool,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -38,6 +46,7 @@ pub enum OutputFormat {
     Table,
     Tsv,
     Yaml,
+    Yamlc,
     None,
 }
 
@@ -62,6 +71,16 @@ pub enum Commands {
 
     /// Generate shell completions
     Completions(CompletionsArgs),
+
+    /// Find Azure CLI commands
+    Find(FindArgs),
+
+    /// Configure Azure CLI settings interactively
+    Configure,
+
+    /// Manage registered Azure clouds
+    #[command(subcommand)]
+    Cloud(CloudCommands),
 
     /// Manage resource groups
     #[command(subcommand)]
@@ -123,6 +142,10 @@ pub enum Commands {
     #[command(subcommand)]
     Staticwebapp(StaticwebappCommands),
 
+    /// Manage Logic App (Standard) resources
+    #[command(subcommand)]
+    Logicapp(LogicappCommands),
+
     /// Manage storage accounts
     #[command(subcommand)]
     Storage(StorageCommands),
@@ -130,6 +153,14 @@ pub enum Commands {
     /// Manage Key Vault resources
     #[command(subcommand)]
     Keyvault(KeyvaultCommands),
+
+    /// Manage virtual machines
+    #[command(subcommand)]
+    Vm(VmCommands),
+
+    /// Manage virtual machine scale sets
+    #[command(subcommand)]
+    Vmss(VmssCommands),
 
     /// Auto-generated commands from Azure CLI AAZ definitions
     #[command(flatten)]
@@ -165,6 +196,30 @@ pub struct LoginArgs {
     /// Service principal secret or user password
     #[arg(short, long)]
     pub password: Option<String>,
+
+    /// PEM certificate file path for service principal certificate auth
+    #[arg(long)]
+    pub certificate: Option<String>,
+
+    /// Certificate password (for PFX/PKCS#12 files)
+    #[arg(long)]
+    pub certificate_password: Option<String>,
+
+    /// Log in using a managed identity (system-assigned or user-assigned)
+    #[arg(long, name = "identity")]
+    pub use_identity: bool,
+
+    /// Client ID of the user-assigned managed identity
+    #[arg(long)]
+    pub client_id: Option<String>,
+
+    /// Object ID of the user-assigned managed identity
+    #[arg(long)]
+    pub object_id: Option<String>,
+
+    /// Resource ID of the user-assigned managed identity
+    #[arg(long)]
+    pub resource_id: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -1137,6 +1192,18 @@ pub enum StorageCommands {
     /// Manage storage accounts
     #[command(subcommand)]
     Account(StorageAccountCommands),
+
+    /// Manage object storage for unstructured data (blobs)
+    #[command(subcommand, name = "blob")]
+    Blob(crate::generated::StorageAazBlobCommands),
+
+    /// Manage Azure file shares
+    #[command(subcommand, name = "share-rm")]
+    ShareRm(crate::generated::StorageAazShareRmCommands),
+
+    /// Show storage SKU information
+    #[command(subcommand, name = "sku")]
+    Sku(crate::generated::StorageAazSkuCommands),
 }
 
 #[derive(Subcommand)]
@@ -1151,6 +1218,18 @@ pub enum StorageAccountCommands {
     Delete(StorageAccountDeleteArgs),
     /// List storage account keys
     Keys(StorageAccountKeysArgs),
+
+    /// Get the usage of file service in storage account
+    #[command(name = "file-service-usage")]
+    FileServiceUsage(crate::generated::StorageAazAccountFileServiceUsageArgs),
+
+    /// Manage Storage Account Migration
+    #[command(subcommand, name = "migration")]
+    Migration(crate::generated::StorageAazAccountMigrationCommands),
+
+    /// Manage Network Security Perimeter Configuration
+    #[command(subcommand, name = "network-security-perimeter-configuration")]
+    NetworkSecurityPerimeterConfiguration(crate::generated::StorageAazAccountNetworkSecurityPerimeterConfigurationCommands),
 }
 
 #[derive(clap::Args)]
@@ -1323,10 +1402,15 @@ pub struct NetworkNsgShowArgs {
 
 #[derive(Subcommand)]
 pub enum VmCommands {
+    // --- Manual commands (vm.rs + vm_ext.rs) ---
     /// List virtual machines
     List(VmListArgs),
     /// Show a virtual machine
     Show(VmShowArgs),
+    /// Create a virtual machine
+    Create(VmCreateArgs),
+    /// Update a virtual machine
+    Update(VmUpdateArgs),
     /// Start a virtual machine
     Start(VmActionArgs),
     /// Stop (power off) a virtual machine
@@ -1335,6 +1419,96 @@ pub enum VmCommands {
     Restart(VmActionArgs),
     /// Deallocate a virtual machine
     Deallocate(VmActionArgs),
+    /// Get the instance view of a virtual machine
+    #[command(name = "get-instance-view")]
+    GetInstanceView(VmShowArgs),
+    /// Resize a virtual machine
+    Resize(VmResizeArgs),
+    /// Open a specific port on a virtual machine
+    #[command(name = "open-port")]
+    OpenPort(VmOpenPortArgs),
+    /// Configure auto-shutdown for a virtual machine
+    #[command(name = "auto-shutdown")]
+    AutoShutdown(VmAutoShutdownArgs),
+    /// Install patches on a virtual machine
+    #[command(name = "install-patches")]
+    InstallPatches(VmInstallPatchesArgs),
+    /// List IP addresses associated with a virtual machine
+    #[command(name = "list-ip-addresses")]
+    ListIpAddresses(VmShowArgs),
+
+    // --- Manual subgroups ---
+    /// Manage VM data disks
+    #[command(subcommand)]
+    Disk(VmDiskCommands),
+    /// Manage managed identities for a VM
+    #[command(subcommand)]
+    Identity(VmIdentityCommands),
+    /// Manage user accounts for a VM
+    #[command(subcommand)]
+    User(VmUserCommands),
+    /// Manage VM network interfaces
+    #[command(subcommand)]
+    Nic(VmNicCommands),
+    /// Manage VM images
+    #[command(subcommand)]
+    Image(VmImageCommands),
+    /// Manage VM encryption
+    #[command(subcommand)]
+    Encryption(VmEncryptionCommands),
+
+    // --- Generated commands ---
+    /// Assess patches on a VM
+    #[command(name = "assess-patches")]
+    AssessPatches(crate::generated::VmAssessPatchesArgs),
+    /// Capture information for a stopped VM
+    Capture(crate::generated::VmCaptureArgs),
+    /// Convert a VM with unmanaged disks to use managed disks
+    Convert(crate::generated::VmConvertArgs),
+    /// Delete a virtual machine
+    Delete(crate::generated::VmDeleteArgs),
+    /// Mark a VM as generalized
+    Generalize(crate::generated::VmGeneralizeArgs),
+    /// List available sizes for VMs
+    #[command(name = "list-sizes")]
+    ListSizes(crate::generated::VmListSizesArgs),
+    /// List available resizing options for VMs
+    #[command(name = "list-vm-resize-options")]
+    ListVmResizeOptions(crate::generated::VmListVmResizeOptionsArgs),
+    /// Migrate a VM to Flexible VMSS
+    #[command(name = "migrate-to-vmss")]
+    MigrateToVmss(crate::generated::VmMigrateToVmssArgs),
+    /// Perform maintenance on a virtual machine
+    #[command(name = "perform-maintenance")]
+    PerformMaintenance(crate::generated::VmPerformMaintenanceArgs),
+    /// Reapply VMs
+    Reapply(crate::generated::VmReapplyArgs),
+    /// Redeploy an existing VM
+    Redeploy(crate::generated::VmRedeployArgs),
+    /// Reimage a virtual machine
+    Reimage(crate::generated::VmReimageArgs),
+    /// Simulate the eviction of a Spot VM
+    #[command(name = "simulate-eviction")]
+    SimulateEviction(crate::generated::VmSimulateEvictionArgs),
+    /// Wait for a VM to reach a condition
+    Wait(crate::generated::VmWaitArgs),
+
+    // --- Generated subgroups ---
+    /// Group resources into availability sets
+    #[command(subcommand, name = "availability-set")]
+    AvailabilitySet(crate::generated::VmAvailabilitySetCommands),
+    /// Troubleshoot boot failures for VMs
+    #[command(subcommand, name = "boot-diagnostics")]
+    BootDiagnostics(crate::generated::VmBootDiagnosticsCommands),
+    /// Manage extensions on VMs
+    #[command(subcommand, name = "extension")]
+    Extension(crate::generated::VmExtensionCommands),
+    /// Manage Dedicated Hosts for Virtual Machines
+    #[command(subcommand, name = "host")]
+    Host(crate::generated::VmHostCommands),
+    /// Manage run commands on a Virtual Machine
+    #[command(subcommand, name = "run-command")]
+    RunCommand(crate::generated::VmRunCommandCommands),
 }
 
 #[derive(clap::Args)]
@@ -1362,6 +1536,633 @@ pub struct VmActionArgs {
     /// Resource group
     #[arg(short = 'g', long)]
     pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmCreateArgs {
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Image URN (publisher:offer:sku:version)
+    #[arg(long)]
+    pub image: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// VM size
+    #[arg(long)]
+    pub size: Option<String>,
+    /// Admin username
+    #[arg(long)]
+    pub admin_username: Option<String>,
+    /// Admin password
+    #[arg(long)]
+    pub admin_password: Option<String>,
+    /// SSH key values
+    #[arg(long, num_args = 1..)]
+    pub ssh_key_values: Option<Vec<String>>,
+    /// Generate SSH keys if not present
+    #[arg(long)]
+    pub generate_ssh_keys: bool,
+    /// OS type (Linux or Windows)
+    #[arg(long)]
+    pub os_type: Option<String>,
+    /// Tags (key=value pairs)
+    #[arg(long, num_args = 1..)]
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct VmUpdateArgs {
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Property key=value pairs to set
+    #[arg(long, num_args = 1..)]
+    pub set: Vec<String>,
+}
+
+#[derive(clap::Args)]
+pub struct VmResizeArgs {
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// New VM size
+    #[arg(long)]
+    pub size: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmOpenPortArgs {
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Port or port range to open
+    #[arg(long)]
+    pub port: String,
+    /// Rule priority (100-4096)
+    #[arg(long)]
+    pub priority: Option<u32>,
+}
+
+#[derive(clap::Args)]
+pub struct VmAutoShutdownArgs {
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Shutdown time (HH:MM)
+    #[arg(long)]
+    pub time: Option<String>,
+    /// Timezone
+    #[arg(long)]
+    pub timezone: Option<String>,
+    /// Disable auto-shutdown
+    #[arg(long)]
+    pub off: bool,
+}
+
+#[derive(clap::Args)]
+pub struct VmInstallPatchesArgs {
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Maximum duration (ISO 8601)
+    #[arg(long)]
+    pub maximum_duration: String,
+    /// Reboot setting (IfRequired, Never, Always)
+    #[arg(long)]
+    pub reboot_setting: String,
+}
+
+#[derive(Subcommand)]
+pub enum VmDiskCommands {
+    /// Attach a managed data disk to a VM
+    Attach(VmDiskAttachArgs),
+    /// Detach a managed data disk from a VM
+    Detach(VmDiskDetachArgs),
+}
+
+#[derive(clap::Args)]
+pub struct VmDiskAttachArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(long)]
+    pub vm_name: String,
+    /// Disk name
+    #[arg(short, long)]
+    pub name: String,
+    /// LUN
+    #[arg(long)]
+    pub lun: Option<i64>,
+    /// Disk size in GB (for new disks)
+    #[arg(long)]
+    pub size_gb: Option<i64>,
+    /// Create a new empty managed disk
+    #[arg(long)]
+    pub new: bool,
+}
+
+#[derive(clap::Args)]
+pub struct VmDiskDetachArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(long)]
+    pub vm_name: String,
+    /// Disk name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(Subcommand)]
+pub enum VmIdentityCommands {
+    /// Assign managed identities to a VM
+    Assign(VmIdentityArgs),
+    /// Remove managed identities from a VM
+    Remove(VmIdentityArgs),
+}
+
+#[derive(clap::Args)]
+pub struct VmIdentityArgs {
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// User-assigned identity resource IDs (use [system] for system-assigned)
+    #[arg(long, num_args = 1..)]
+    pub identities: Option<Vec<String>>,
+}
+
+#[derive(Subcommand)]
+pub enum VmUserCommands {
+    /// Update a user account on a VM
+    Update(VmUserUpdateArgs),
+    /// Delete a user account from a VM
+    Delete(VmUserDeleteArgs),
+    /// Reset SSH configuration on a VM
+    #[command(name = "reset-ssh")]
+    ResetSsh(VmUserResetSshArgs),
+}
+
+#[derive(clap::Args)]
+pub struct VmUserUpdateArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Username
+    #[arg(short, long)]
+    pub username: String,
+    /// Password
+    #[arg(short, long)]
+    pub password: Option<String>,
+    /// SSH public key value
+    #[arg(long)]
+    pub ssh_key_value: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct VmUserDeleteArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Username to delete
+    #[arg(short, long)]
+    pub username: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmUserResetSshArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(Subcommand)]
+pub enum VmNicCommands {
+    /// Add NICs to a VM
+    Add(VmNicModifyArgs),
+    /// Remove NICs from a VM
+    Remove(VmNicModifyArgs),
+    /// Replace all NICs on a VM
+    Set(VmNicSetArgs),
+    /// List NICs on a VM
+    List(VmNicListArgs),
+}
+
+#[derive(clap::Args)]
+pub struct VmNicModifyArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(long)]
+    pub vm_name: String,
+    /// NIC resource IDs
+    #[arg(long, num_args = 1..)]
+    pub nics: Vec<String>,
+}
+
+#[derive(clap::Args)]
+pub struct VmNicSetArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(long)]
+    pub vm_name: String,
+    /// NIC resource IDs
+    #[arg(long, num_args = 1..)]
+    pub nics: Vec<String>,
+    /// Primary NIC resource ID
+    #[arg(long)]
+    pub primary_nic: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct VmNicListArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(long)]
+    pub vm_name: String,
+}
+
+#[derive(Subcommand)]
+pub enum VmImageCommands {
+    /// List VM image versions
+    List(VmImageListArgs),
+    /// List VM image offers
+    #[command(name = "list-offers")]
+    ListOffers(VmImageListOffersArgs),
+    /// List VM image publishers
+    #[command(name = "list-publishers")]
+    ListPublishers(VmImageListPublishersArgs),
+    /// List VM image SKUs
+    #[command(name = "list-skus")]
+    ListSkus(VmImageListSkusArgs),
+    /// Accept Marketplace terms for a VM image
+    #[command(name = "accept-terms")]
+    AcceptTerms(VmImageAcceptTermsArgs),
+}
+
+#[derive(clap::Args)]
+pub struct VmImageListArgs {
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Publisher
+    #[arg(short, long)]
+    pub publisher: String,
+    /// Offer
+    #[arg(short = 'f', long)]
+    pub offer: String,
+    /// SKU
+    #[arg(short, long)]
+    pub sku: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmImageListOffersArgs {
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Publisher
+    #[arg(short, long)]
+    pub publisher: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmImageListPublishersArgs {
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmImageListSkusArgs {
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Publisher
+    #[arg(short, long)]
+    pub publisher: String,
+    /// Offer
+    #[arg(short = 'f', long)]
+    pub offer: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmImageAcceptTermsArgs {
+    /// Publisher
+    #[arg(short, long)]
+    pub publisher: String,
+    /// Offer
+    #[arg(short = 'f', long)]
+    pub offer: String,
+    /// Plan name
+    #[arg(long)]
+    pub plan: String,
+}
+
+#[derive(Subcommand)]
+pub enum VmEncryptionCommands {
+    /// Enable disk encryption on a VM
+    Enable(VmEncryptionEnableArgs),
+    /// Disable disk encryption on a VM
+    Disable(VmEncryptionDisableArgs),
+}
+
+#[derive(clap::Args)]
+pub struct VmEncryptionEnableArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Key Vault URL or resource ID
+    #[arg(long)]
+    pub disk_encryption_keyvault: String,
+    /// Volume type (OS, Data, All)
+    #[arg(long)]
+    pub volume_type: Option<String>,
+    /// Key encryption key URL
+    #[arg(long)]
+    pub key_encryption_key: Option<String>,
+    /// Key encryption algorithm
+    #[arg(long)]
+    pub key_encryption_algorithm: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct VmEncryptionDisableArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// VM name
+    #[arg(short, long)]
+    pub name: String,
+    /// Volume type (OS, Data, All)
+    #[arg(long)]
+    pub volume_type: Option<String>,
+}
+
+// --- VMSS ---
+
+#[derive(Subcommand)]
+pub enum VmssCommands {
+    // --- Manual commands (vmss_ext.rs) ---
+    /// Create a virtual machine scale set
+    Create(VmssCreateArgs),
+    /// Update a virtual machine scale set
+    Update(VmssUpdateArgs),
+    /// Scale a virtual machine scale set
+    Scale(VmssScaleArgs),
+    /// Deallocate VMs within a VMSS
+    Deallocate(VmssInstanceActionArgs),
+    /// Restart VMs within a VMSS
+    Restart(VmssInstanceActionArgs),
+    /// Stop VMs within a VMSS
+    Stop(VmssInstanceActionArgs),
+    /// Reimage VMs within a VMSS
+    Reimage(VmssInstanceActionArgs),
+    /// Get the instance view of a VMSS
+    #[command(name = "get-instance-view")]
+    GetInstanceView(VmssNameArgs),
+    /// Update instances in a VMSS
+    #[command(name = "update-instances")]
+    UpdateInstances(VmssUpdateInstancesArgs),
+    /// List instance connection info for a VMSS
+    #[command(name = "list-instance-connection-info")]
+    ListInstanceConnectionInfo(VmssNameArgs),
+    /// List public IPs for all VMSS instances
+    #[command(name = "list-instance-public-ips")]
+    ListInstancePublicIps(VmssNameArgs),
+    /// Set orchestration service state
+    #[command(name = "set-orchestration-service-state")]
+    SetOrchestrationServiceState(VmssOrchestrationArgs),
+
+    // --- Manual subgroups ---
+    /// Manage managed identities for a VMSS
+    #[command(subcommand)]
+    Identity(VmssIdentityCommands),
+
+    // --- Generated commands ---
+    /// Delete a VM scale set
+    Delete(crate::generated::VmssDeleteArgs),
+    /// Delete VMs within a VMSS
+    #[command(name = "delete-instances")]
+    DeleteInstances(crate::generated::VmssDeleteInstancesArgs),
+    /// List the OS upgrades on a VM scale set instance
+    #[command(name = "get-os-upgrade-history")]
+    GetOsUpgradeHistory(crate::generated::VmssGetOsUpgradeHistoryArgs),
+    /// List all VM scale sets under a resource group
+    List(crate::generated::VmssListArgs),
+    /// List all virtual machines in a VM scale set
+    #[command(name = "list-instances")]
+    ListInstances(crate::generated::VmssListInstancesArgs),
+    /// List SKUs available for your VM scale set
+    #[command(name = "list-skus")]
+    ListSkus(crate::generated::VmssListSkusArgs),
+    /// Perform maintenance on VMs in a scale set
+    #[command(name = "perform-maintenance")]
+    PerformMaintenance(crate::generated::VmssPerformMaintenanceArgs),
+    /// Simulate the eviction of a Spot VM in a VMSS
+    #[command(name = "simulate-eviction")]
+    SimulateEviction(crate::generated::VmssSimulateEvictionArgs),
+    /// Start VMs within a VMSS
+    Start(crate::generated::VmssStartArgs),
+    /// Manual platform update domain walk
+    #[command(name = "update-domain-walk")]
+    UpdateDomainWalk(crate::generated::VmssUpdateDomainWalkArgs),
+    /// Wait for a VMSS to reach a condition
+    Wait(crate::generated::VmssWaitArgs),
+
+    // --- Generated subgroups ---
+    /// Manage extensions on a VM scale set
+    #[command(subcommand, name = "extension")]
+    Extension(crate::generated::VmssExtensionCommands),
+    /// Manage network interfaces of a VMSS
+    #[command(subcommand, name = "nic")]
+    Nic(crate::generated::VmssNicCommands),
+    /// Manage rolling upgrades
+    #[command(subcommand, name = "rolling-upgrade")]
+    RollingUpgrade(crate::generated::VmssRollingUpgradeCommands),
+    /// Manage run commands on a VMSS
+    #[command(subcommand, name = "run-command")]
+    RunCommand(crate::generated::VmssRunCommandCommands),
+}
+
+#[derive(clap::Args)]
+pub struct VmssCreateArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Image URN (publisher:offer:sku:version)
+    #[arg(long)]
+    pub image: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Number of instances
+    #[arg(long)]
+    pub instance_count: Option<i64>,
+    /// VM size
+    #[arg(long)]
+    pub vm_sku: Option<String>,
+    /// Admin username
+    #[arg(long)]
+    pub admin_username: Option<String>,
+    /// Admin password
+    #[arg(long)]
+    pub admin_password: Option<String>,
+    /// Upgrade policy mode (Manual, Automatic, Rolling)
+    #[arg(long)]
+    pub upgrade_policy_mode: Option<String>,
+    /// Tags (key=value pairs)
+    #[arg(long, num_args = 1..)]
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct VmssUpdateArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Property key=value pairs to set
+    #[arg(long, num_args = 1..)]
+    pub set: Option<Vec<String>>,
+    /// Tags (key=value pairs)
+    #[arg(long, num_args = 1..)]
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct VmssScaleArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// New instance count
+    #[arg(long)]
+    pub new_capacity: i64,
+}
+
+#[derive(clap::Args)]
+pub struct VmssInstanceActionArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Instance IDs to act on (omit for all)
+    #[arg(long, num_args = 1..)]
+    pub instance_ids: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct VmssNameArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct VmssUpdateInstancesArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Instance IDs to update
+    #[arg(long, num_args = 1..)]
+    pub instance_ids: Vec<String>,
+}
+
+#[derive(clap::Args)]
+pub struct VmssOrchestrationArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Service name
+    #[arg(long)]
+    pub service_name: String,
+    /// Action (Resume, Suspend)
+    #[arg(long)]
+    pub action: String,
+}
+
+#[derive(Subcommand)]
+pub enum VmssIdentityCommands {
+    /// Assign managed identities to a VMSS
+    Assign(VmssIdentityArgs),
+    /// Remove managed identities from a VMSS
+    Remove(VmssIdentityArgs),
+}
+
+#[derive(clap::Args)]
+pub struct VmssIdentityArgs {
+    /// VMSS name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Assign system-assigned identity
+    #[arg(long)]
+    pub system_assigned: bool,
+    /// User-assigned identity resource IDs
+    #[arg(long, num_args = 1..)]
+    pub user_assigned: Option<Vec<String>>,
 }
 
 // --- Config ---
@@ -1393,6 +2194,40 @@ pub struct ConfigGetArgs {
 pub struct ConfigUnsetArgs {
     /// Key to unset (e.g. defaults.group)
     pub key: String,
+}
+
+// --- Find ---
+
+#[derive(clap::Args)]
+pub struct FindArgs {
+    /// Search query (e.g. "create vm", "storage blob")
+    pub query: String,
+}
+
+// --- Cloud ---
+
+#[derive(Subcommand)]
+pub enum CloudCommands {
+    /// List registered clouds
+    List,
+    /// Show details of a cloud
+    Show(CloudShowArgs),
+    /// Set the active cloud
+    Set(CloudSetArgs),
+}
+
+#[derive(clap::Args)]
+pub struct CloudShowArgs {
+    /// Cloud name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct CloudSetArgs {
+    /// Cloud name
+    #[arg(short, long)]
+    pub name: String,
 }
 
 // --- Key Vault ---
@@ -2281,6 +3116,24 @@ pub enum WebappCommands {
     /// Manage CORS settings
     #[command(subcommand)]
     Cors(WebappCorsCommands),
+    /// Manage VNet integrations
+    #[command(subcommand, name = "vnet-integration")]
+    VnetIntegration(WebappVnetIntegrationCommands),
+    /// Manage web app logs
+    #[command(subcommand)]
+    Log(WebappLogCommands),
+    /// Manage deleted web apps
+    #[command(subcommand)]
+    Deleted(WebappDeletedCommands),
+    /// Manage continuous webjobs
+    #[command(subcommand, name = "webjob-continuous")]
+    WebjobContinuous(WebappWebjobContinuousCommands),
+    /// Manage triggered webjobs
+    #[command(subcommand, name = "webjob-triggered")]
+    WebjobTriggered(WebappWebjobTriggeredCommands),
+    /// Manage traffic routing
+    #[command(subcommand, name = "traffic-routing")]
+    TrafficRouting(WebappTrafficRoutingCommands),
 }
 
 #[derive(clap::Args)]
@@ -2973,6 +3826,297 @@ pub struct WebappConfigBackupRestoreArgs {
     /// SAS URL for the storage container
     #[arg(long)]
     pub storage_account_url: String,
+}
+
+// Webapp VNet Integration
+
+#[derive(Subcommand)]
+pub enum WebappVnetIntegrationCommands {
+    /// List VNet integrations
+    List(WebappVnetIntegrationListArgs),
+    /// Add a VNet integration
+    Add(WebappVnetIntegrationAddArgs),
+    /// Remove a VNet integration
+    Remove(WebappVnetIntegrationRemoveArgs),
+}
+
+#[derive(clap::Args)]
+pub struct WebappVnetIntegrationListArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappVnetIntegrationAddArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// VNet name
+    #[arg(long)]
+    pub vnet: String,
+    /// Subnet name
+    #[arg(long)]
+    pub subnet: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappVnetIntegrationRemoveArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// VNet name
+    #[arg(long)]
+    pub vnet: String,
+}
+
+// Webapp Log
+
+#[derive(Subcommand)]
+pub enum WebappLogCommands {
+    /// Configure logging
+    Config(WebappLogConfigArgs),
+    /// Download log files
+    Download(WebappLogDownloadArgs),
+    /// Start live log tail
+    Tail(WebappLogTailArgs),
+}
+
+#[derive(clap::Args)]
+pub struct WebappLogConfigArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Application logging (filesystem, azureblobstorage, off)
+    #[arg(long)]
+    pub application_logging: Option<String>,
+    /// Web server logging (filesystem, off)
+    #[arg(long)]
+    pub web_server_logging: Option<String>,
+    /// Log level (Error, Warning, Information, Verbose)
+    #[arg(long)]
+    pub level: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct WebappLogDownloadArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappLogTailArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+// Webapp Deleted
+
+#[derive(Subcommand)]
+pub enum WebappDeletedCommands {
+    /// List deleted web apps
+    List(WebappDeletedListArgs),
+    /// Restore a deleted web app
+    Restore(WebappDeletedRestoreArgs),
+}
+
+#[derive(clap::Args)]
+pub struct WebappDeletedListArgs {
+    /// Resource group (optional filter)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct WebappDeletedRestoreArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name to restore into
+    #[arg(short, long)]
+    pub name: String,
+    /// Deleted site ID
+    #[arg(long)]
+    pub deleted_id: String,
+}
+
+// Webapp Webjob Continuous
+
+#[derive(Subcommand)]
+pub enum WebappWebjobContinuousCommands {
+    /// List continuous webjobs
+    List(WebappWebjobContinuousListArgs),
+    /// Start a continuous webjob
+    Start(WebappWebjobContinuousStartArgs),
+    /// Stop a continuous webjob
+    Stop(WebappWebjobContinuousStopArgs),
+    /// Remove a continuous webjob
+    Remove(WebappWebjobContinuousRemoveArgs),
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobContinuousListArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobContinuousStartArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Webjob name
+    #[arg(long)]
+    pub webjob_name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobContinuousStopArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Webjob name
+    #[arg(long)]
+    pub webjob_name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobContinuousRemoveArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Webjob name
+    #[arg(long)]
+    pub webjob_name: String,
+}
+
+// Webapp Webjob Triggered
+
+#[derive(Subcommand)]
+pub enum WebappWebjobTriggeredCommands {
+    /// List triggered webjobs
+    List(WebappWebjobTriggeredListArgs),
+    /// Run a triggered webjob
+    Run(WebappWebjobTriggeredRunArgs),
+    /// Remove a triggered webjob
+    Remove(WebappWebjobTriggeredRemoveArgs),
+    /// Show triggered webjob history/logs
+    Log(WebappWebjobTriggeredLogArgs),
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobTriggeredListArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobTriggeredRunArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Webjob name
+    #[arg(long)]
+    pub webjob_name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobTriggeredRemoveArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Webjob name
+    #[arg(long)]
+    pub webjob_name: String,
+}
+
+#[derive(clap::Args)]
+pub struct WebappWebjobTriggeredLogArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Webjob name
+    #[arg(long)]
+    pub webjob_name: String,
+}
+
+// Webapp Traffic Routing
+
+#[derive(Subcommand)]
+pub enum WebappTrafficRoutingCommands {
+    /// Set traffic routing distribution
+    Set(WebappTrafficRoutingSetArgs),
+    /// Clear traffic routing rules
+    Clear(WebappTrafficRoutingClearArgs),
+}
+
+#[derive(clap::Args)]
+pub struct WebappTrafficRoutingSetArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Distribution in format slot=percentage (e.g. staging=25)
+    #[arg(long, num_args = 1..)]
+    pub distribution: Vec<String>,
+}
+
+#[derive(clap::Args)]
+pub struct WebappTrafficRoutingClearArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Web app name
+    #[arg(short, long)]
+    pub name: String,
 }
 
 // Webapp Deployment Slot
@@ -4328,4 +5472,211 @@ pub struct StaticwebappEnvironmentDeleteArgs {
     /// Environment name
     #[arg(long)]
     pub environment_name: String,
+}
+
+// ── Logicapp commands ──────────────────────────────────────────────
+
+#[derive(Subcommand)]
+pub enum LogicappCommands {
+    /// List logic apps
+    List(LogicappListArgs),
+    /// Show details of a logic app
+    Show(LogicappShowArgs),
+    /// Create a logic app
+    Create(LogicappCreateArgs),
+    /// Delete a logic app
+    Delete(LogicappDeleteArgs),
+    /// Stop a logic app
+    Stop(LogicappStopArgs),
+    /// Start a logic app
+    Start(LogicappStartArgs),
+    /// Restart a logic app
+    Restart(LogicappRestartArgs),
+    /// Update a logic app
+    Update(LogicappUpdateArgs),
+    /// Configure a logic app
+    #[command(subcommand)]
+    Config(LogicappConfigCommands),
+    /// Manage logic app deployments
+    #[command(subcommand)]
+    Deployment(LogicappDeploymentCommands),
+}
+
+#[derive(clap::Args)]
+pub struct LogicappListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappShowArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappCreateArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+    /// App Service plan name or ID
+    #[arg(short, long)]
+    pub plan: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Storage account name
+    #[arg(long)]
+    pub storage_account: Option<String>,
+    /// Space-separated tags: key=value
+    #[arg(long, num_args = 1..)]
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappDeleteArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappStopArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappStartArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappRestartArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappUpdateArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Space-separated property=value pairs
+    #[arg(long, num_args = 1..)]
+    pub set: Option<Vec<String>>,
+}
+
+// Logicapp Config
+
+#[derive(Subcommand)]
+pub enum LogicappConfigCommands {
+    /// Manage app settings
+    #[command(subcommand)]
+    Appsettings(LogicappConfigAppsettingsCommands),
+}
+
+#[derive(Subcommand)]
+pub enum LogicappConfigAppsettingsCommands {
+    /// List app settings
+    List(LogicappConfigAppsettingsListArgs),
+    /// Set app settings
+    Set(LogicappConfigAppsettingsSetArgs),
+    /// Delete app settings
+    Delete(LogicappConfigAppsettingsDeleteArgs),
+}
+
+#[derive(clap::Args)]
+pub struct LogicappConfigAppsettingsListArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappConfigAppsettingsSetArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Space-separated settings: key=value
+    #[arg(long, num_args = 1..)]
+    pub settings: Vec<String>,
+}
+
+#[derive(clap::Args)]
+pub struct LogicappConfigAppsettingsDeleteArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Space-separated setting names to delete
+    #[arg(long = "setting-names", num_args = 1..)]
+    pub setting_names: Vec<String>,
+}
+
+// Logicapp Deployment
+
+#[derive(Subcommand)]
+pub enum LogicappDeploymentCommands {
+    /// Manage deployment sources
+    #[command(subcommand)]
+    Source(LogicappDeploymentSourceCommands),
+}
+
+#[derive(Subcommand)]
+pub enum LogicappDeploymentSourceCommands {
+    /// Deploy from a zip file
+    #[command(name = "config-zip")]
+    ConfigZip(LogicappDeploymentSourceConfigZipArgs),
+}
+
+#[derive(clap::Args)]
+pub struct LogicappDeploymentSourceConfigZipArgs {
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Logic app name
+    #[arg(short, long)]
+    pub name: String,
+    /// Path to the zip file to deploy
+    #[arg(long)]
+    pub src: String,
 }

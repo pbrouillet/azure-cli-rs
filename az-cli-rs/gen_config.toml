@@ -14,6 +14,7 @@ aaz_subpath = "src/azure-cli/azure/cli/command_modules/network/aaz/latest/networ
 [[modules]]
 service = "vm_gen"
 cli_prefix = "vm"
+skip_top_level = true
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/vm"
 
 [[modules]]
@@ -50,6 +51,7 @@ aaz_subpath = "src/azure-cli/azure/cli/command_modules/resource/aaz/latest/polic
 [[modules]]
 service = "vmss_gen"
 cli_prefix = "vmss"
+skip_top_level = true
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/vmss"
 
 [[modules]]
@@ -89,7 +91,7 @@ aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/ppg"
 
 [[modules]]
 service = "capacity_reservation"
-cli_prefix = "capacity-reservation"
+cli_prefix = "capacity"
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/vm/aaz/latest/capacity"
 
 [[modules]]
@@ -170,13 +172,6 @@ service = "consumption_gen"
 cli_prefix = "consumption"
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/consumption/aaz/latest/consumption"
 
-# --- Policy Insights ---
-
-[[modules]]
-service = "policy_insights"
-cli_prefix = "policy-insights"
-aaz_subpath = "src/azure-cli/azure/cli/command_modules/policyinsights/aaz/latest/policy_insights"
-
 # --- Managed Services ---
 
 [[modules]]
@@ -188,7 +183,7 @@ aaz_subpath = "src/azure-cli/azure/cli/command_modules/managedservices/aaz/lates
 
 [[modules]]
 service = "compute_fleet"
-cli_prefix = "fleet"
+cli_prefix = "compute-fleet"
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/computefleet/aaz/latest/compute_fleet"
 
 # --- Managed Identity ---
@@ -203,6 +198,7 @@ aaz_subpath = "src/azure-cli/azure/cli/command_modules/identity/aaz/latest/ident
 [[modules]]
 service = "storage_aaz"
 cli_prefix = "storage-aaz"
+skip_top_level = true
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/storage/aaz/latest/storage"
 
 # --- AKS (partial AAZ) ---
