@@ -2,7 +2,7 @@
 
 ## Repository Structure
 
-This is a Rust rewrite of the Azure CLI (`az`). The Rust app lives in `az-cli-rs/` and the reference Python CLI is in `azure-cli/` (read-only, used for behavioral comparison).
+This is a Rust rewrite of the Azure CLI (`az`). The Rust app lives in `az-cli-rs/`. The reference Python CLI is expected as a sibling checkout at `../azure-cli` (path set by `azure_cli_path` in `gen_config.toml`); it is read-only and used both for behavioral comparison and as the source for build-time code generation. When it is absent, `build.rs` falls back to empty stubs so the crate still builds — generated service commands just won't be present.
 
 ## Build & Run
 
@@ -13,7 +13,19 @@ cargo run -- <command>   # run (e.g. cargo run -- group list)
 cargo run -- --help      # see all commands
 ```
 
-No test suite yet. Verify changes manually against live Azure (requires `azrs login` first).
+## Test
+
+```sh
+cd az-cli-rs
+cargo test                      # run all tests (cassette playback, no network)
+cargo test test_group_crud      # run a single test by name
+```
+
+Integration tests live in `src/testing/` and use a cassette record/playback framework inspired by `azure-cli-testsdk`:
+- **Playback (default)** — HTTP interactions are replayed from JSON cassettes under `tests/recordings/`. No network or login required, so `cargo test` is deterministic and safe in CI.
+- **Recording** — set `AZURE_TEST_RUN_LIVE=1` to send real HTTP requests (requires `azrs login`) and re-record the cassettes.
+
+`tests/parity/*.toml` declare command-level parity suites (compare `azrs <cmd>` output against `az <cmd>`, with `ignore_fields` for volatile values). Beyond automated tests, still verify parity-sensitive changes manually against live Azure.
 
 ## Architecture
 
@@ -51,6 +63,8 @@ The `tools/aaz_gen/` crate provides the parser (Python AAZ → IR) and emitter (
 | `auth/service_principal.rs` | SP auth flow + SP entry store |
 | `arm.rs` | Tenant/subscription discovery after login (ARM `/tenants` + `/subscriptions`) |
 | `rest.rs` | Generic `azrs rest` command — URL normalization, auto-scope detection from URL |
+| `http_client.rs` | Shared HTTP client used by auth + commands (also the recording/playback seam for tests) |
+| `testing/` | Cassette-based test framework (record/playback, processors, checkers, fixtures, preparers, scenario) |
 | `commands/mod.rs` | `ArmCommand` framework — shared auth+HTTP for all service commands |
 | `commands/group.rs` | Resource group CRUD — pattern to follow for new service commands |
 | `commands/keyvault.rs` | Key Vault secrets — data-plane pattern (different auth scope) |
