@@ -4,6 +4,18 @@
 
 This is a Rust rewrite of the Azure CLI (`az`). The Rust app lives in `az-cli-rs/`. The reference Python CLI is expected as a sibling checkout at `../azure-cli` (path set by `azure_cli_path` in `gen_config.toml`); it is read-only and used both for behavioral comparison and as the source for build-time code generation. When it is absent, `build.rs` falls back to empty stubs so the crate still builds — generated service commands just won't be present.
 
+> **`../azure-cli` is required for the full command surface.** A plain `cargo build` without the sibling checkout produces a *working binary that silently omits every generated service* (`network`, `vm`, `cosmosdb`, `sql`, `monitor`, …) via the stub fallback. If those top-level commands are "missing", the cause is almost always a missing/mismatched `../azure-cli`, not a code regression — check that before debugging further.
+
+> **Keep this file honest.** These instructions have drifted from reality before (e.g. claiming "no test suite" after the cassette framework landed, or the wrong reference-CLI path). Trust the source over this doc when they disagree, verify architectural claims against the code before relying on them, and update this file in the same change whenever you alter the test framework, module layout, or codegen pipeline.
+
+## Windows dev loop
+
+This crate is Windows-only (`x86_64-pc-windows-msvc`); all commands run in PowerShell.
+
+- `&&` only chains external/native commands in PowerShell — use `;` before PowerShell keywords (`if`, `foreach`, `$x = …`). Each command runs in a fresh process, so `cd`/env changes don't persist across invocations.
+- `build.rs` deliberately emits generated `#[path = "..."]` attributes with **forward slashes** (`forward_slash()`), because backslashes are escape sequences in Rust string literals. Preserve that when touching the emitter.
+- Spawned external tools need a full path or a resolvable executable — there is no shell PATH expansion when a process is launched directly.
+
 ## Build & Run
 
 ```sh
