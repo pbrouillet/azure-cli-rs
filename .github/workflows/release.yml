@@ -25,39 +25,91 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # --- Linux (glibc) ---
           - name: linux-x86_64
             runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary: azrs
-            asset: azrs-linux-x86_64
+            tool: cargo
+            archive: tar
+            bin: azrs
+            asset: azrs-x86_64-unknown-linux-gnu
+
+          # --- Linux (musl, static) via cargo-zigbuild ---
+          - name: linux-x86_64-musl
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            tool: zigbuild
+            features: vendored-openssl
+            archive: tar
+            bin: azrs
+            asset: azrs-x86_64-unknown-linux-musl
+          - name: linux-aarch64-musl
+            runner: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            tool: zigbuild
+            features: vendored-openssl
+            archive: tar
+            bin: azrs
+            asset: azrs-aarch64-unknown-linux-musl
+
+          # --- macOS ---
           - name: darwin-x86_64
             runner: macos-latest
             target: x86_64-apple-darwin
-            binary: azrs
-            asset: azrs-darwin-x86_64
+            tool: cargo
+            archive: tar
+            bin: azrs
+            asset: azrs-x86_64-apple-darwin
           - name: darwin-arm64
             runner: macos-latest
             target: aarch64-apple-darwin
-            binary: azrs
-            asset: azrs-darwin-arm64
+            tool: cargo
+            archive: tar
+            bin: azrs
+            asset: azrs-aarch64-apple-darwin
+
+          # --- Windows (MSVC) ---
           - name: windows-x86_64
             runner: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: azrs.exe
-            asset: azrs-windows-x86_64.exe
+            tool: cargo
+            archive: zip
+            bin: azrs.exe
+            asset: azrs-x86_64-pc-windows-msvc
+          - name: windows-aarch64
+            runner: windows-latest
+            target: aarch64-pc-windows-msvc
+            tool: cargo
+            archive: zip
+            bin: azrs.exe
+            asset: azrs-aarch64-pc-windows-msvc
+
+          # --- Windows (GNU) via cargo-zigbuild ---
+          - name: windows-x86_64-gnu
+            runner: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+            tool: zigbuild
+            archive: zip
+            bin: azrs.exe
+            asset: azrs-x86_64-pc-windows-gnu
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Clone azure-cli for codegen
-        run: |
-          git clone --depth 1 https://github.com/Azure/azure-cli.git azure-cli
+        run: git clone --depth 1 https://github.com/Azure/azure-cli.git azure-cli
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Install cargo-zigbuild
+        if: matrix.tool == 'zigbuild'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: zigbuild
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -65,20 +117,37 @@ jobs:
           workspaces: az-cli-rs -> target
           key: ${{ matrix.target }}
 
-      - name: Build release binary
+      - name: Build (cargo)
+        if: matrix.tool == 'cargo'
         working-directory: az-cli-rs
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
 
-      - name: Rename binary
+      - name: Build (zigbuild)
+        if: matrix.tool == 'zigbuild'
+        working-directory: az-cli-rs
+        run: cargo zigbuild --release --target ${{ matrix.target }} ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
+
+      - name: Package archive
         shell: bash
+        working-directory: az-cli-rs/target/${{ matrix.target }}/release
         run: |
-          cp az-cli-rs/target/${{ matrix.target }}/release/${{ matrix.binary }} ${{ matrix.asset }}
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            if command -v zip >/dev/null 2>&1; then
+              zip -j "$GITHUB_WORKSPACE/${{ matrix.asset }}.zip" "${{ matrix.bin }}"
+            else
+              7z a "$GITHUB_WORKSPACE/${{ matrix.asset }}.zip" "${{ matrix.bin }}"
+            fi
+          else
+            tar czf "$GITHUB_WORKSPACE/${{ matrix.asset }}.tar.gz" "${{ matrix.bin }}"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
-          path: ${{ matrix.asset }}
+          path: |
+            ${{ matrix.asset }}.tar.gz
+            ${{ matrix.asset }}.zip
           if-no-files-found: error
 
   release:
@@ -107,8 +176,11 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: List artifacts
-        run: ls -lhR artifacts/
+      - name: Generate checksums
+        working-directory: artifacts
+        run: |
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Create release
         uses: softprops/action-gh-release@v2

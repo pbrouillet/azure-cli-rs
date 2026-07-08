@@ -9,6 +9,11 @@ license = "MIT"
 name = "azrs"
 path = "src/main.rs"
 
+[features]
+# Statically link a vendored OpenSSL. Enabled only for musl release builds where the
+# system OpenSSL is unavailable; leaves default (native-tls) builds unchanged.
+vendored-openssl = ["reqwest/native-tls-vendored"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 clap_complete = "4"
