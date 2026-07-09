@@ -39,6 +39,18 @@ jmespath = "0.5"
 serde_yaml = "0.9"
 regex = "1"
 
+# Microsoft Identity Broker transport for `auth/broker.rs`.
+# Linux: session-D-Bus `com.microsoft.identity.broker1`.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "4"
+
+# Windows: Web Account Manager (WAM) via safe WinRT projections.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = [
+    "Security_Authentication_Web_Core",
+    "Security_Credentials",
+] }
+
 [build-dependencies]
 aaz_gen = { path = "tools/aaz_gen", package = "aaz-gen" }
 regex = "1"

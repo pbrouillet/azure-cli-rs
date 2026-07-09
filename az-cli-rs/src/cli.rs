@@ -205,6 +205,11 @@ pub struct LoginArgs {
     #[arg(long)]
     pub use_device_code: bool,
 
+    /// Log in via the Microsoft Identity Broker (Linux) / Web Account Manager
+    /// (Windows) for a silent, credential-free login on a joined machine
+    #[arg(long)]
+    pub use_broker: bool,
+
     /// Tenant ID or domain to authenticate against
     #[arg(short, long)]
     pub tenant: Option<String>,
