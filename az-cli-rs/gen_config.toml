@@ -5,10 +5,14 @@
 azure_cli_path = "../azure-cli"
 
 # Full network module — all subgroups nested under `azrs network`
+# Also merges `network private-dns` (lives in the separate `privatedns` module).
 [[modules]]
 service = "network"
 cli_prefix = "network"
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/network/aaz/latest/network"
+extra_subpaths = [
+    "src/azure-cli/azure/cli/command_modules/privatedns/aaz/latest/network",
+]
 
 # Full VM module — all subgroups nested under `azrs vm`
 [[modules]]
@@ -46,6 +50,11 @@ aaz_subpath = "src/azure-cli/azure/cli/command_modules/eventhubs/aaz/latest"
 service = "resource_policy"
 cli_prefix = "policy"
 aaz_subpath = "src/azure-cli/azure/cli/command_modules/resource/aaz/latest/policy"
+# NOTE: `policy attestation` (in the policyinsights module) is NOT generatable yet:
+# its AAZ files use the newer @register_command_group style with no per-command
+# @register_command, and split into scope variants (resource / by-rg / by-subscription)
+# that `az` collapses into one arg-conditional command. Needs parser+emitter support
+# for that pattern (or hand-coding). Deferred.
 
 # VM sub-resources — each gets its own top-level command
 [[modules]]
