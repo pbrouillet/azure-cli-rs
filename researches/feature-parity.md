@@ -32,7 +32,8 @@
 | Token cache + refresh | ✅ (MSAL) | ✅ (custom, `~/.azure/azrs_token_cache.json`) | Different cache files |
 | HTTP cache | ✅ | ❌ | |
 | Multi-tenant discovery | ✅ | ✅ | |
-| Interactive subscription selector | ✅ | ✅ | |
+| Interactive subscription selector | ✅ | ✅ |
+| Identity Broker / WAM (silent) | ⚠️ (MSAL broker) | ✅ | `login --use-broker`; Linux D-Bus `com.microsoft.identity.broker1` + Windows WAM. Silent, credential-free on a joined machine, and used as an automatic fallback for any ARM call. | |
 
 ---
 

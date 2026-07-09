@@ -244,10 +244,87 @@ impl TokenCache {
             return Ok(cached);
         }
 
+        // No cached/refresh token — try a silent broker acquisition (Linux
+        // Identity Broker / Windows WAM). This makes broker-backed logins
+        // self-refreshing: a fresh token is minted with no prompt whenever the
+        // cached one expires. `available()` is false on unsupported platforms,
+        // so this is a no-op there and the suggestion error below still fires.
+        if let Some(cached) = self.try_broker_silent(username, tenant, scopes, cloud, &ak, &scope_str) {
+            return Ok(cached);
+        }
+
         Err(AzrsError::AuthWithSuggestion {
             message: "Can't find token from cache. To re-authenticate, please run the command below.".into(),
             suggestion: generate_login_suggestion(Some(tenant), scopes),
         })
+    }
+
+    /// Attempt a silent broker/WAM token acquisition, caching and returning the
+    /// result on success. Returns `None` when the broker is unavailable or the
+    /// acquisition fails, letting the caller fall through to its normal error.
+    fn try_broker_silent(
+        &mut self,
+        username: &str,
+        tenant: &str,
+        scopes: &[String],
+        cloud: &CloudConfig,
+        access_key: &str,
+        scope_str: &str,
+    ) -> Option<CachedToken> {
+        use crate::auth::broker::{self, BrokerConfig};
+        if !broker::available() {
+            return None;
+        }
+        // A concrete GUID tenant disambiguates a multi-realm account; the
+        // discovery placeholders (`common`/`organizations`) do not.
+        let broker_tenant = (tenant != "common" && tenant != "organizations")
+            .then(|| tenant.to_string());
+        let authority = format!("{}/{}", cloud.active_directory, tenant);
+        let mut cfg = BrokerConfig::for_arm(
+            authority,
+            scopes.to_vec(),
+            username.to_string(),
+            broker_tenant,
+        );
+        let tok = match broker::acquire_token_silent(&cfg) {
+            Ok(t) => t,
+            Err(_) => {
+                // The profile may carry a placeholder username (`user@azure`
+                // from single-tenant discovery); retry letting the broker pick
+                // its sole/first account.
+                cfg.username.clear();
+                broker::acquire_token_silent(&cfg).ok()?
+            }
+        };
+        let cached = CachedToken {
+            access_token: tok.access_token,
+            expires_on: tok.expires_on,
+            scope: scope_str.to_string(),
+        };
+        self.access_tokens.insert(access_key.to_string(), cached.clone());
+        Some(cached)
+    }
+
+    /// Store an access token acquired out-of-band (e.g. via the broker, which
+    /// yields no refresh token) so subsequent calls hit the cache.
+    pub fn store_access_token(
+        &mut self,
+        username: &str,
+        tenant: &str,
+        scopes: &[String],
+        access_token: String,
+        expires_on: DateTime<Utc>,
+    ) {
+        let scope = scopes.join(" ");
+        let ak = Self::access_key(username, tenant, &scope);
+        self.access_tokens.insert(
+            ak,
+            CachedToken {
+                access_token,
+                expires_on,
+                scope,
+            },
+        );
     }
 
     /// Use a refresh token to get new tokens.

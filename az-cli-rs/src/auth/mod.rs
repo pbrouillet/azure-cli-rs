@@ -1,3 +1,4 @@
+pub mod broker;
 pub mod certificate;
 pub mod cloud_shell;
 pub mod device_code;

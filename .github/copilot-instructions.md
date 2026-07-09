@@ -30,6 +30,8 @@ Own OAuth2 implementation (not `azure_identity`) using Azure CLI's public client
 - `auth/device_code.rs` — Device code polling
 - `auth/service_principal.rs` — Client credentials grant (client_id + client_secret)
 
+Plus a native **Identity Broker / WAM** path (`auth/broker.rs`): silent, credential-free token acquisition via the Linux session-D-Bus `com.microsoft.identity.broker1` (Intune broker / himmelblau) and the Windows Web Account Manager (WAM) WinRT API. Exposed as `azrs login --use-broker`, and used automatically inside `TokenCache::get_access_token` as a last-resort silent re-acquisition before erroring. Broker tokens carry no refresh token — re-auth is just another silent broker call. macOS reports the broker unavailable and falls back to the flows above. Deps are target-gated (`zbus` on Linux, `windows` on Windows).
+
 Tokens cached in `~/.azure/azrs_token_cache.json`. Profile (subscriptions) in `~/.azure/azureProfile.json` (same format as Python `az`). SP entries in `~/.azure/azrs_sp_entries.json`.
 
 ### Build-time code generation

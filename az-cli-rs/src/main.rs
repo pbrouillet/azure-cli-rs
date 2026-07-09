@@ -1642,6 +1642,105 @@ mod cmd_handlers {
             return Ok(None);
         }
 
+        // --- Broker / WAM login ---
+        if args.use_broker {
+            use crate::auth::broker::{self, BrokerConfig};
+            if !broker::available() {
+                return Err(crate::error::AzrsError::Auth(
+                    "No Microsoft Identity Broker (Linux) or Web Account Manager (Windows) is available on this machine.".into(),
+                ));
+            }
+
+            // Resolve the account: explicit --username, else the sole account.
+            let accounts = broker::list_accounts("http://localhost")?;
+            if accounts.is_empty() {
+                return Err(crate::error::AzrsError::Auth("The broker has no registered accounts.".into()));
+            }
+            let username = match args.username.as_deref() {
+                Some(u) => u.to_string(),
+                None if accounts.len() == 1 => accounts[0].username.clone(),
+                None => {
+                    let names = accounts
+                        .iter()
+                        .map(|a| a.username.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    return Err(crate::error::AzrsError::Auth(format!(
+                        "Multiple broker accounts found; pass --username/-u to pick one: {names}"
+                    )));
+                }
+            };
+
+            let req_tenant = args.tenant.clone();
+            let authority = format!(
+                "{authority_host}/{}",
+                req_tenant.as_deref().unwrap_or("organizations")
+            );
+            let scopes = args
+                .scope
+                .clone()
+                .unwrap_or_else(|| vec![cloud.default_scope()]);
+
+            // Only a GUID tenant disambiguates the account for the broker.
+            let cfg = BrokerConfig::for_arm(
+                authority,
+                scopes.clone(),
+                username.clone(),
+                req_tenant.clone().filter(|t| t.len() == 36),
+            );
+
+            eprintln!("Acquiring token via broker for {username}...");
+            let tok = broker::acquire_token_silent(&cfg)
+                .or_else(|_| broker::acquire_token_interactive(&cfg))?;
+
+            // The tenant the token was actually issued for (its `tid`).
+            let effective_tenant = req_tenant
+                .clone()
+                .or_else(|| broker::token_tenant(&tok.access_token))
+                .unwrap_or_else(|| "organizations".to_string());
+
+            eprintln!("Retrieving subscriptions...");
+            let arm = ArmClient::new(&cloud);
+            let subscriptions = arm
+                .discover_subscriptions_for_tenant(&effective_tenant, &tok.access_token)
+                .await
+                .unwrap_or_default();
+
+            if subscriptions.is_empty() && !args.allow_no_subscriptions {
+                eprintln!("No subscriptions found. Use --allow-no-subscriptions to log in without one.");
+            }
+
+            // Stamp the real broker username so later ARM calls resolve the
+            // right account for silent re-acquisition.
+            let broker_subs: Vec<crate::profile::Subscription> = subscriptions
+                .into_iter()
+                .map(|mut s| {
+                    s.user = crate::profile::SubscriptionUser {
+                        name: username.clone(),
+                        user_type: "user".to_string(),
+                    };
+                    s
+                })
+                .collect();
+
+            let mut cache = TokenCache::load(&cloud)?;
+            cache.store_access_token(
+                &username,
+                &effective_tenant,
+                &scopes,
+                tok.access_token,
+                tok.expires_on,
+            );
+
+            let mut profile = Profile::load()?;
+            profile.merge_subscriptions(broker_subs, &None, &cloud.environment_name);
+            profile.save()?;
+            cache.save()?;
+
+            output::print_login_summary(&profile);
+            return Ok(None);
+        }
+
         if args.service_principal {
             // Service principal login
             let client_id = args.username.as_deref().ok_or_else(|| {
