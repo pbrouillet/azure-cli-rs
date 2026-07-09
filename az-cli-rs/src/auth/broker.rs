@@ -903,10 +903,14 @@ mod tests {
             eprintln!("skipping live broker test: broker not available");
             return;
         }
+        // Note: on Windows the WAM AAD *provider* is present on every machine
+        // (including a non-joined CI runner), so `available()` can be true with
+        // zero registered accounts. The Linux D-Bus broker only advertises
+        // itself when accounts exist. So only assert that enumeration succeeds
+        // and any returned accounts are well-formed — not that there is >=1.
         let accounts = list_accounts("http://localhost").expect("list accounts");
-        assert!(!accounts.is_empty(), "a running broker should have >=1 account");
         for a in &accounts {
-            assert!(!a.username.is_empty());
+            assert!(!a.username.is_empty(), "broker account is missing a username");
         }
     }
 }
