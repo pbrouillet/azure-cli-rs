@@ -27,6 +27,12 @@ struct ModuleConfig {
     cli_prefix: Option<String>,
     #[serde(default)]
     skip_top_level: bool,
+    /// Additional AAZ source directories whose command groups are merged into
+    /// this module. Used to nest commands that `az` re-parents under an existing
+    /// top-level group (e.g. `network private-dns` lives in the `privatedns`
+    /// module, `policy attestation` lives in the `policyinsights` module).
+    #[serde(default)]
+    extra_subpaths: Vec<String>,
 }
 
 fn main() {
@@ -63,6 +69,54 @@ fn main() {
                 );
 
                 let service = aaz_gen::parser::parse_aaz_directory(&aaz_path, &module.service);
+                let mut service = service;
+
+                // Merge in any extra source directories (nested-under-existing-group support).
+                let cli_prefix_norm = module
+                    .cli_prefix
+                    .clone()
+                    .unwrap_or_else(|| module.service.replace('_', "-"))
+                    .replace('_', "-");
+                let mut extra_groups: Vec<aaz_gen::model::CommandGroup> = Vec::new();
+                for extra in &module.extra_subpaths {
+                    let extra_path = cli_path.join(extra);
+                    if extra_path.exists() {
+                        println!("cargo:rerun-if-changed={}", extra_path.display());
+                        let extra_svc =
+                            aaz_gen::parser::parse_aaz_directory(&extra_path, &module.service);
+                        eprintln!(
+                            "aaz-gen: {} — merging {} extra group(s) from {}",
+                            module.service,
+                            extra_svc.groups.len(),
+                            extra_path.display()
+                        );
+                        extra_groups.extend(extra_svc.groups);
+                    } else {
+                        eprintln!(
+                            "aaz-gen: {} — extra path not found, skipping: {}",
+                            module.service,
+                            extra_path.display()
+                        );
+                    }
+                }
+                if !extra_groups.is_empty() {
+                    // If the module collapses to a single wrapper group whose name matches
+                    // the cli_prefix (the emitter flattens this into the top-level), the extra
+                    // groups must be nested INSIDE that wrapper's subgroups — otherwise the
+                    // flatten optimization breaks and a redundant nested group appears.
+                    if service.groups.len() == 1
+                        && service.groups[0].name.replace('_', "-") == cli_prefix_norm
+                    {
+                        service.groups[0].subgroups.extend(extra_groups);
+                        service.groups[0]
+                            .subgroups
+                            .sort_by(|a, b| a.name.cmp(&b.name));
+                    } else {
+                        service.groups.extend(extra_groups);
+                        service.groups.sort_by(|a, b| a.name.cmp(&b.name));
+                    }
+                }
+
                 let total_cmds = count_commands_recursive(&service.groups);
                 eprintln!(
                     "aaz-gen: {} — {} groups, {} commands",
