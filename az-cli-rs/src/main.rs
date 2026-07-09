@@ -30,6 +30,12 @@ use cli::{
     ManagementGroupHierarchySettingsCommands, ManagementGroupSubscriptionCommands,
     ManagementGroupTenantBackfillCommands, ProviderCommands, ProviderOperationCommands,
     ProviderPermissionCommands, RedisCommands, ResourceCommands, ResourceLinkCommands, StackCommands,
+    AcrCommands, AcrCredentialCommands,
+    AppconfigCommands, AppconfigCredentialCommands,
+    SignalrCommands, SignalrKeyCommands,
+    MapsCommands, MapsAccountCommands, MapsAccountKeysCommands,
+    CognitiveservicesCommands, CognitiveservicesAccountCommands, CognitiveservicesAccountKeysCommands,
+    EventgridCommands, EventgridTopicCommands, EventgridTopicKeyCommands, EventgridDomainCommands,
     StackScopeCommands, StaticwebappAppsettingsCommands, StaticwebappCommands,
     StaticwebappEnvironmentCommands, StaticwebappHostnameCommands, StorageAccountCommands,
     StorageCommands, TagCommands, TsCommands,
@@ -1397,6 +1403,283 @@ async fn async_main() {
                     args.set.as_deref(),
                 ).await)
             }
+        },
+        Commands::Acr(sub) => match sub {
+            AcrCommands::Create(args) => {
+                cmd_handlers::wrap(crate::commands::acr::create(
+                    &args.name,
+                    &args.resource_group,
+                    &args.location,
+                    &args.sku,
+                    args.admin_enabled,
+                ).await)
+            }
+            AcrCommands::List(args) => {
+                cmd_handlers::wrap_list(crate::commands::acr::list(args.resource_group.as_deref()).await)
+            }
+            AcrCommands::Show(args) => {
+                cmd_handlers::wrap(crate::commands::acr::show(&args.name, &args.resource_group).await)
+            }
+            AcrCommands::Delete(args) => {
+                if !args.yes && !cmd_handlers::confirm(&format!("delete registry '{}'", args.name)) {
+                    return;
+                }
+                cmd_handlers::wrap_none(crate::commands::acr::delete(&args.name, &args.resource_group).await)
+            }
+            AcrCommands::Update(args) => {
+                cmd_handlers::wrap(crate::commands::acr::update(
+                    &args.name,
+                    &args.resource_group,
+                    args.tags.as_deref(),
+                    args.set.as_deref(),
+                ).await)
+            }
+            AcrCommands::Credential(sub) => match sub {
+                AcrCredentialCommands::Show(args) => {
+                    cmd_handlers::wrap(crate::commands::acr::credential_show(&args.name, &args.resource_group).await)
+                }
+                AcrCredentialCommands::Renew(args) => {
+                    cmd_handlers::wrap(crate::commands::acr::credential_renew(
+                        &args.name,
+                        &args.resource_group,
+                        &args.password_name,
+                    ).await)
+                }
+            },
+        },
+        Commands::Appconfig(sub) => match sub {
+            AppconfigCommands::Create(args) => {
+                cmd_handlers::wrap(crate::commands::appconfig::create(
+                    &args.name,
+                    &args.resource_group,
+                    &args.location,
+                    &args.sku,
+                    args.enable_purge_protection,
+                ).await)
+            }
+            AppconfigCommands::List(args) => {
+                cmd_handlers::wrap_list(crate::commands::appconfig::list(args.resource_group.as_deref()).await)
+            }
+            AppconfigCommands::Show(args) => {
+                cmd_handlers::wrap(crate::commands::appconfig::show(&args.name, &args.resource_group).await)
+            }
+            AppconfigCommands::Delete(args) => {
+                if !args.yes && !cmd_handlers::confirm(&format!("delete App Configuration store '{}'", args.name)) {
+                    return;
+                }
+                cmd_handlers::wrap_none(crate::commands::appconfig::delete(&args.name, &args.resource_group).await)
+            }
+            AppconfigCommands::Credential(credential_sub) => match credential_sub {
+                AppconfigCredentialCommands::List(args) => {
+                    cmd_handlers::wrap(crate::commands::appconfig::credential_list(&args.name, &args.resource_group).await)
+                }
+            },
+            AppconfigCommands::Update(args) => {
+                cmd_handlers::wrap(crate::commands::appconfig::update(
+                    &args.name,
+                    &args.resource_group,
+                    args.tags.as_deref(),
+                    args.set.as_deref(),
+                ).await)
+            }
+        },
+        Commands::Signalr(sub) => match sub {
+            SignalrCommands::Create(args) => {
+                cmd_handlers::wrap(crate::commands::signalr::create(
+                    &args.name,
+                    &args.resource_group,
+                    &args.location,
+                    &args.sku,
+                    args.unit_count,
+                    &args.service_mode,
+                ).await)
+            }
+            SignalrCommands::List(args) => {
+                cmd_handlers::wrap_list(crate::commands::signalr::list(args.resource_group.as_deref()).await)
+            }
+            SignalrCommands::Show(args) => {
+                cmd_handlers::wrap(crate::commands::signalr::show(&args.name, &args.resource_group).await)
+            }
+            SignalrCommands::Delete(args) => {
+                if !args.yes && !cmd_handlers::confirm(&format!("delete SignalR '{}'", args.name)) {
+                    return;
+                }
+                cmd_handlers::wrap_none(crate::commands::signalr::delete(&args.name, &args.resource_group).await)
+            }
+            SignalrCommands::Update(args) => {
+                cmd_handlers::wrap(crate::commands::signalr::update(
+                    &args.name,
+                    &args.resource_group,
+                    args.tags.as_deref(),
+                    args.set.as_deref(),
+                ).await)
+            }
+            SignalrCommands::Key(key) => match key {
+                SignalrKeyCommands::List(args) => {
+                    cmd_handlers::wrap(crate::commands::signalr::key_list(&args.name, &args.resource_group).await)
+                }
+                SignalrKeyCommands::Renew(args) => {
+                    cmd_handlers::wrap(crate::commands::signalr::key_renew(&args.name, &args.resource_group, &args.key_type).await)
+                }
+            },
+        },
+        Commands::Maps(sub) => match sub {
+            MapsCommands::Account(a) => match a {
+                MapsAccountCommands::Create(args) => {
+                    cmd_handlers::wrap(crate::commands::maps::create(
+                        &args.name,
+                        &args.resource_group,
+                        &args.sku,
+                        args.kind.as_deref(),
+                        &args.location,
+                    ).await)
+                }
+                MapsAccountCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::maps::list(args.resource_group.as_deref()).await)
+                }
+                MapsAccountCommands::Show(args) => {
+                    cmd_handlers::wrap(crate::commands::maps::show(&args.name, &args.resource_group).await)
+                }
+                MapsAccountCommands::Delete(args) => {
+                    if !args.yes && !cmd_handlers::confirm(&format!("delete Azure Maps account '{}'", args.name)) {
+                        return;
+                    }
+                    cmd_handlers::wrap_none(crate::commands::maps::delete(&args.name, &args.resource_group).await)
+                }
+                MapsAccountCommands::Update(args) => {
+                    cmd_handlers::wrap(crate::commands::maps::update(
+                        &args.name,
+                        &args.resource_group,
+                        args.tags.as_deref(),
+                        args.set.as_deref(),
+                    ).await)
+                }
+                MapsAccountCommands::Keys(keys) => match keys {
+                    MapsAccountKeysCommands::List(args) => {
+                        cmd_handlers::wrap(crate::commands::maps::keys_list(&args.name, &args.resource_group).await)
+                    }
+                    MapsAccountKeysCommands::Regenerate(args) => {
+                        cmd_handlers::wrap(crate::commands::maps::keys_regenerate(
+                            &args.name,
+                            &args.resource_group,
+                            &args.key_type,
+                        ).await)
+                    }
+                },
+            },
+        },
+        Commands::Cognitiveservices(sub) => match sub {
+            CognitiveservicesCommands::Account(a) => match a {
+                CognitiveservicesAccountCommands::Create(args) => {
+                    cmd_handlers::wrap(crate::commands::cognitiveservices::account_create(
+                        &args.name,
+                        &args.resource_group,
+                        &args.location,
+                        &args.kind,
+                        &args.sku,
+                    ).await)
+                }
+                CognitiveservicesAccountCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::cognitiveservices::account_list(args.resource_group.as_deref()).await)
+                }
+                CognitiveservicesAccountCommands::Show(args) => {
+                    cmd_handlers::wrap(crate::commands::cognitiveservices::account_show(&args.name, &args.resource_group).await)
+                }
+                CognitiveservicesAccountCommands::Delete(args) => {
+                    if !args.yes && !cmd_handlers::confirm(&format!("delete Cognitive Services account '{}'", args.name)) {
+                        return;
+                    }
+                    cmd_handlers::wrap_none(crate::commands::cognitiveservices::account_delete(&args.name, &args.resource_group).await)
+                }
+                CognitiveservicesAccountCommands::Update(args) => {
+                    cmd_handlers::wrap(crate::commands::cognitiveservices::account_update(
+                        &args.name,
+                        &args.resource_group,
+                        args.tags.as_deref(),
+                        args.set.as_deref(),
+                    ).await)
+                }
+                CognitiveservicesAccountCommands::Keys(k) => match k {
+                    CognitiveservicesAccountKeysCommands::List(args) => {
+                        cmd_handlers::wrap(crate::commands::cognitiveservices::account_keys_list(&args.name, &args.resource_group).await)
+                    }
+                    CognitiveservicesAccountKeysCommands::Regenerate(args) => {
+                        cmd_handlers::wrap(crate::commands::cognitiveservices::account_keys_regenerate(
+                            &args.name,
+                            &args.resource_group,
+                            &args.key_name,
+                        ).await)
+                    }
+                },
+            },
+        },
+        Commands::Eventgrid(sub) => match sub {
+            EventgridCommands::Topic(t) => match t {
+                EventgridTopicCommands::Create(args) => {
+                    cmd_handlers::wrap(crate::commands::eventgrid::topic_create(
+                        &args.name,
+                        &args.resource_group,
+                        &args.location,
+                        args.input_schema.as_deref(),
+                        args.public_network_access.as_deref(),
+                    ).await)
+                }
+                EventgridTopicCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::eventgrid::topic_list(args.resource_group.as_deref()).await)
+                }
+                EventgridTopicCommands::Show(args) => {
+                    cmd_handlers::wrap(crate::commands::eventgrid::topic_show(&args.name, &args.resource_group).await)
+                }
+                EventgridTopicCommands::Delete(args) => {
+                    if !args.yes && !cmd_handlers::confirm(&format!("delete Event Grid topic '{}'", args.name)) {
+                        return;
+                    }
+                    cmd_handlers::wrap_none(crate::commands::eventgrid::topic_delete(&args.name, &args.resource_group).await)
+                }
+                EventgridTopicCommands::Update(args) => {
+                    cmd_handlers::wrap(crate::commands::eventgrid::topic_update(
+                        &args.name,
+                        &args.resource_group,
+                        args.tags.as_deref(),
+                        args.set.as_deref(),
+                    ).await)
+                }
+                EventgridTopicCommands::Key(k) => match k {
+                    EventgridTopicKeyCommands::List(args) => {
+                        cmd_handlers::wrap(crate::commands::eventgrid::topic_key_list(&args.name, &args.resource_group).await)
+                    }
+                    EventgridTopicKeyCommands::Regenerate(args) => {
+                        cmd_handlers::wrap(crate::commands::eventgrid::topic_key_regenerate(
+                            &args.name,
+                            &args.resource_group,
+                            &args.key_name,
+                        ).await)
+                    }
+                },
+            },
+            EventgridCommands::Domain(d) => match d {
+                EventgridDomainCommands::Create(args) => {
+                    cmd_handlers::wrap(crate::commands::eventgrid::domain_create(
+                        &args.name,
+                        &args.resource_group,
+                        &args.location,
+                        args.input_schema.as_deref(),
+                        args.public_network_access.as_deref(),
+                    ).await)
+                }
+                EventgridDomainCommands::List(args) => {
+                    cmd_handlers::wrap_list(crate::commands::eventgrid::domain_list(args.resource_group.as_deref()).await)
+                }
+                EventgridDomainCommands::Show(args) => {
+                    cmd_handlers::wrap(crate::commands::eventgrid::domain_show(&args.name, &args.resource_group).await)
+                }
+                EventgridDomainCommands::Delete(args) => {
+                    if !args.yes && !cmd_handlers::confirm(&format!("delete Event Grid domain '{}'", args.name)) {
+                        return;
+                    }
+                    cmd_handlers::wrap_none(crate::commands::eventgrid::domain_delete(&args.name, &args.resource_group).await)
+                }
+            },
         },
         Commands::Config(sub) => match sub {
             ConfigCommands::Set(args) => {

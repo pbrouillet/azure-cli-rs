@@ -158,6 +158,30 @@ pub enum Commands {
     #[command(subcommand)]
     Redis(RedisCommands),
 
+    /// Manage Azure Container Registries
+    #[command(subcommand)]
+    Acr(AcrCommands),
+
+    /// Manage App Configuration stores
+    #[command(subcommand)]
+    Appconfig(AppconfigCommands),
+
+    /// Manage Azure SignalR Service
+    #[command(subcommand)]
+    Signalr(SignalrCommands),
+
+    /// Manage Azure Maps accounts
+    #[command(subcommand)]
+    Maps(MapsCommands),
+
+    /// Manage Cognitive Services accounts
+    #[command(subcommand)]
+    Cognitiveservices(CognitiveservicesCommands),
+
+    /// Manage Azure Event Grid resources
+    #[command(subcommand)]
+    Eventgrid(EventgridCommands),
+
     /// Manage Key Vault resources
     #[command(subcommand)]
     Keyvault(KeyvaultCommands),
@@ -1403,6 +1427,733 @@ pub struct RedisUpdateArgs {
     /// Update a property: properties.<key>=<value> given as key=value
     #[arg(long = "set", num_args = 0..)]
     pub set: Option<Vec<String>>,
+}
+
+// --- ACR ---
+
+#[derive(Subcommand)]
+pub enum AcrCommands {
+    /// Create a new container registry
+    Create(AcrCreateArgs),
+    /// List container registries
+    List(AcrListArgs),
+    /// Show details of a container registry
+    Show(AcrShowArgs),
+    /// Delete a container registry
+    Delete(AcrDeleteArgs),
+    /// Update a container registry
+    Update(AcrUpdateArgs),
+    /// Manage registry credentials
+    #[command(subcommand)]
+    Credential(AcrCredentialCommands),
+}
+
+#[derive(Subcommand)]
+pub enum AcrCredentialCommands {
+    /// Show registry credentials
+    Show(AcrShowArgs),
+    /// Regenerate a registry password
+    Renew(AcrCredentialRenewArgs),
+}
+
+#[derive(clap::Args)]
+pub struct AcrCreateArgs {
+    /// Name of the container registry
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// SKU of the container registry
+    #[arg(long, value_parser = ["Basic", "Standard", "Premium"])]
+    pub sku: String,
+    /// Indicates whether the admin user is enabled
+    #[arg(long)]
+    pub admin_enabled: bool,
+}
+
+#[derive(clap::Args)]
+pub struct AcrListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct AcrShowArgs {
+    /// Name of the container registry
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct AcrDeleteArgs {
+    /// Name of the container registry
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct AcrUpdateArgs {
+    /// Name of the container registry
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Space-separated tags in key=value form
+    #[arg(long, num_args = 0..)]
+    pub tags: Option<Vec<String>>,
+    /// Update a property: properties.<key>=<value> given as key=value
+    #[arg(long = "set", num_args = 0..)]
+    pub set: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct AcrCredentialRenewArgs {
+    /// Name of the container registry
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// The password name to regenerate
+    #[arg(long, value_parser = ["password", "password2"])]
+    pub password_name: String,
+}
+
+// --- App Configuration ---
+
+#[derive(Subcommand)]
+pub enum AppconfigCommands {
+    /// Create an App Configuration store
+    Create(AppconfigCreateArgs),
+    /// List App Configuration stores
+    List(AppconfigListArgs),
+    /// Show details of an App Configuration store
+    Show(AppconfigShowArgs),
+    /// Delete an App Configuration store
+    Delete(AppconfigDeleteArgs),
+    /// Manage App Configuration store credentials
+    #[command(subcommand)]
+    Credential(AppconfigCredentialCommands),
+    /// Update an App Configuration store
+    Update(AppconfigUpdateArgs),
+}
+
+#[derive(Subcommand)]
+pub enum AppconfigCredentialCommands {
+    /// List access keys for an App Configuration store
+    List(AppconfigCredentialListArgs),
+}
+
+#[derive(clap::Args)]
+pub struct AppconfigCreateArgs {
+    /// Name of the App Configuration store
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// App Configuration SKU: Free, Developer, Standard, or Premium
+    #[arg(long, value_parser = ["Free", "Developer", "Standard", "Premium"])]
+    pub sku: String,
+    /// Enable purge protection
+    #[arg(short = 'p', long)]
+    pub enable_purge_protection: bool,
+}
+
+#[derive(clap::Args)]
+pub struct AppconfigListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct AppconfigShowArgs {
+    /// Name of the App Configuration store
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct AppconfigDeleteArgs {
+    /// Name of the App Configuration store
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct AppconfigCredentialListArgs {
+    /// Name of the App Configuration store
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct AppconfigUpdateArgs {
+    /// Name of the App Configuration store
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Space-separated tags in key=value form
+    #[arg(long, num_args = 0..)]
+    pub tags: Option<Vec<String>>,
+    /// Update a property: properties.<key>=<value> given as key=value
+    #[arg(long = "set", num_args = 0..)]
+    pub set: Option<Vec<String>>,
+}
+
+// --- SignalR ---
+
+#[derive(Subcommand)]
+pub enum SignalrCommands {
+    /// Create a new SignalR service
+    Create(SignalrCreateArgs),
+    /// List SignalR services
+    List(SignalrListArgs),
+    /// Show details of a SignalR service
+    Show(SignalrShowArgs),
+    /// Delete a SignalR service
+    Delete(SignalrDeleteArgs),
+    /// Update a SignalR service
+    Update(SignalrUpdateArgs),
+    /// Manage SignalR access keys
+    #[command(subcommand)]
+    Key(SignalrKeyCommands),
+}
+
+#[derive(Subcommand)]
+pub enum SignalrKeyCommands {
+    /// Retrieve the access keys of a SignalR service
+    List(SignalrShowArgs),
+    /// Regenerate a SignalR service access key
+    Renew(SignalrKeyRenewArgs),
+}
+
+#[derive(clap::Args)]
+pub struct SignalrCreateArgs {
+    /// Name of the SignalR service
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// SKU name
+    #[arg(long, value_parser = ["Free_F1", "Standard_S1", "Premium_P1"])]
+    pub sku: String,
+    /// The number of SignalR service units
+    #[arg(long, default_value_t = 1)]
+    pub unit_count: i64,
+    /// The service mode
+    #[arg(long, default_value = "Default", value_parser = ["Default", "Serverless", "Classic"])]
+    pub service_mode: String,
+}
+
+#[derive(clap::Args)]
+pub struct SignalrListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct SignalrShowArgs {
+    /// Name of the SignalR service
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct SignalrDeleteArgs {
+    /// Name of the SignalR service
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct SignalrKeyRenewArgs {
+    /// Name of the SignalR service
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Which key to regenerate
+    #[arg(long, value_parser = ["Primary", "Secondary"])]
+    pub key_type: String,
+}
+
+#[derive(clap::Args)]
+pub struct SignalrUpdateArgs {
+    /// Name of the SignalR service
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Space-separated tags in key=value form
+    #[arg(long, num_args = 0..)]
+    pub tags: Option<Vec<String>>,
+    /// Update a property: properties.<key>=<value> given as key=value
+    #[arg(long = "set", num_args = 0..)]
+    pub set: Option<Vec<String>>,
+}
+
+// --- Azure Maps ---
+
+#[derive(Subcommand)]
+pub enum MapsCommands {
+    /// Manage Azure Maps accounts
+    #[command(subcommand)]
+    Account(MapsAccountCommands),
+}
+
+#[derive(Subcommand)]
+pub enum MapsAccountCommands {
+    /// Create an Azure Maps account
+    Create(MapsAccountCreateArgs),
+    /// List Azure Maps accounts
+    List(MapsAccountListArgs),
+    /// Show details of an Azure Maps account
+    Show(MapsAccountShowArgs),
+    /// Delete an Azure Maps account
+    Delete(MapsAccountDeleteArgs),
+    /// Update an Azure Maps account
+    Update(MapsAccountUpdateArgs),
+    /// Manage Azure Maps account keys
+    #[command(subcommand)]
+    Keys(MapsAccountKeysCommands),
+}
+
+#[derive(Subcommand)]
+pub enum MapsAccountKeysCommands {
+    /// List Azure Maps account keys
+    List(MapsAccountKeysListArgs),
+    /// Regenerate an Azure Maps account key
+    #[command(name = "regenerate", alias = "renew")]
+    Regenerate(MapsAccountKeysRegenerateArgs),
+}
+
+#[derive(clap::Args)]
+pub struct MapsAccountCreateArgs {
+    /// Name of the Azure Maps account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// The name of the SKU: S0, S1, or G2
+    #[arg(long, value_parser = ["S0", "S1", "G2"])]
+    pub sku: String,
+    /// Account kind: Gen1 or Gen2
+    #[arg(long, value_parser = ["Gen1", "Gen2"])]
+    pub kind: Option<String>,
+    /// Location
+    #[arg(short, long, default_value = "global")]
+    pub location: String,
+}
+
+#[derive(clap::Args)]
+pub struct MapsAccountListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct MapsAccountShowArgs {
+    /// Name of the Azure Maps account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct MapsAccountDeleteArgs {
+    /// Name of the Azure Maps account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct MapsAccountUpdateArgs {
+    /// Name of the Azure Maps account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Space-separated tags in key=value form
+    #[arg(long, num_args = 0..)]
+    pub tags: Option<Vec<String>>,
+    /// Update a property: properties.<key>=<value> given as key=value
+    #[arg(long = "set", num_args = 0..)]
+    pub set: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct MapsAccountKeysListArgs {
+    /// Name of the Azure Maps account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct MapsAccountKeysRegenerateArgs {
+    /// Name of the Azure Maps account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Which key to regenerate
+    #[arg(long = "key", value_parser = ["primary", "secondary"])]
+    pub key_type: String,
+}
+
+// --- Cognitive Services ---
+
+#[derive(Subcommand)]
+pub enum CognitiveservicesCommands {
+    /// Manage Cognitive Services accounts
+    #[command(subcommand)]
+    Account(CognitiveservicesAccountCommands),
+}
+
+#[derive(Subcommand)]
+pub enum CognitiveservicesAccountCommands {
+    /// Create a Cognitive Services account
+    Create(CognitiveservicesAccountCreateArgs),
+    /// List Cognitive Services accounts
+    List(CognitiveservicesAccountListArgs),
+    /// Show details of a Cognitive Services account
+    Show(CognitiveservicesAccountShowArgs),
+    /// Delete a Cognitive Services account
+    Delete(CognitiveservicesAccountDeleteArgs),
+    /// Update a Cognitive Services account
+    Update(CognitiveservicesAccountUpdateArgs),
+    /// Manage Cognitive Services account keys
+    #[command(subcommand)]
+    Keys(CognitiveservicesAccountKeysCommands),
+}
+
+#[derive(Subcommand)]
+pub enum CognitiveservicesAccountKeysCommands {
+    /// List Cognitive Services account keys
+    List(CognitiveservicesAccountShowArgs),
+    /// Regenerate a Cognitive Services account key
+    Regenerate(CognitiveservicesAccountKeysRegenerateArgs),
+}
+
+#[derive(clap::Args)]
+pub struct CognitiveservicesAccountCreateArgs {
+    /// Name of the Cognitive Services account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Kind of Cognitive Services account, e.g. OpenAI, TextAnalytics, ComputerVision
+    #[arg(long)]
+    pub kind: String,
+    /// Name of the SKU, e.g. S0 or F0
+    #[arg(long)]
+    pub sku: String,
+    /// Accept Responsible AI terms without prompting
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct CognitiveservicesAccountListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct CognitiveservicesAccountShowArgs {
+    /// Name of the Cognitive Services account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct CognitiveservicesAccountDeleteArgs {
+    /// Name of the Cognitive Services account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct CognitiveservicesAccountUpdateArgs {
+    /// Name of the Cognitive Services account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Space-separated tags in key=value form
+    #[arg(long, num_args = 0..)]
+    pub tags: Option<Vec<String>>,
+    /// Update a property: properties.<key>=<value> given as key=value
+    #[arg(long = "set", num_args = 0..)]
+    pub set: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct CognitiveservicesAccountKeysRegenerateArgs {
+    /// Name of the Cognitive Services account
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Key name to regenerate
+    #[arg(long, value_parser = ["Key1", "Key2"])]
+    pub key_name: String,
+}
+
+// --- Event Grid ---
+
+#[derive(Subcommand)]
+pub enum EventgridCommands {
+    /// Manage Event Grid topics
+    #[command(subcommand)]
+    Topic(EventgridTopicCommands),
+    /// Manage Event Grid domains
+    #[command(subcommand)]
+    Domain(EventgridDomainCommands),
+}
+
+#[derive(Subcommand)]
+pub enum EventgridTopicCommands {
+    /// Create an Event Grid topic
+    Create(EventgridTopicCreateArgs),
+    /// List Event Grid topics
+    List(EventgridTopicListArgs),
+    /// Show an Event Grid topic
+    Show(EventgridTopicShowArgs),
+    /// Delete an Event Grid topic
+    Delete(EventgridTopicDeleteArgs),
+    /// Update an Event Grid topic
+    Update(EventgridTopicUpdateArgs),
+    /// Manage Event Grid topic keys
+    #[command(subcommand)]
+    Key(EventgridTopicKeyCommands),
+}
+
+#[derive(Subcommand)]
+pub enum EventgridTopicKeyCommands {
+    /// List topic keys
+    List(EventgridTopicShowArgs),
+    /// Regenerate a topic key
+    Regenerate(EventgridTopicKeyRegenerateArgs),
+}
+
+#[derive(Subcommand)]
+pub enum EventgridDomainCommands {
+    /// Create an Event Grid domain
+    Create(EventgridDomainCreateArgs),
+    /// List Event Grid domains
+    List(EventgridDomainListArgs),
+    /// Show an Event Grid domain
+    Show(EventgridDomainShowArgs),
+    /// Delete an Event Grid domain
+    Delete(EventgridDomainDeleteArgs),
+}
+
+#[derive(clap::Args)]
+pub struct EventgridTopicCreateArgs {
+    /// Topic name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Input schema
+    #[arg(long, value_parser = ["eventgridschema", "customeventschema", "cloudeventschemav1_0"])]
+    pub input_schema: Option<String>,
+    /// Public network access
+    #[arg(long, value_parser = ["enabled", "disabled"])]
+    pub public_network_access: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridTopicListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridTopicShowArgs {
+    /// Topic name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridTopicDeleteArgs {
+    /// Topic name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridTopicUpdateArgs {
+    /// Topic name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Space-separated tags in key=value form
+    #[arg(long, num_args = 0..)]
+    pub tags: Option<Vec<String>>,
+    /// Update a property: properties.<key>=<value> given as key=value
+    #[arg(long = "set", num_args = 0..)]
+    pub set: Option<Vec<String>>,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridTopicKeyRegenerateArgs {
+    /// Topic name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Key name to regenerate
+    #[arg(long, value_parser = ["key1", "key2"])]
+    pub key_name: String,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridDomainCreateArgs {
+    /// Domain name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Input schema
+    #[arg(long, value_parser = ["eventgridschema", "customeventschema", "cloudeventschemav1_0"])]
+    pub input_schema: Option<String>,
+    /// Public network access
+    #[arg(long, value_parser = ["enabled", "disabled"])]
+    pub public_network_access: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridDomainListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridDomainShowArgs {
+    /// Domain name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct EventgridDomainDeleteArgs {
+    /// Domain name
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
 }
 
 // --- Network ---

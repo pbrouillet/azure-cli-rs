@@ -2,8 +2,14 @@
 ///
 /// Provides authenticated HTTP methods (get/put/delete/list) against ARM,
 /// with subscription context, pagination, and error handling.
+pub mod acr;
+pub mod appconfig;
 pub mod appservice;
+pub mod cognitiveservices;
 pub mod deployment;
+pub mod eventgrid;
+pub mod maps;
+pub mod signalr;
 pub mod feature;
 pub mod functionapp;
 pub mod functionapp_ext;
