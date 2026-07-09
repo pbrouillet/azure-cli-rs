@@ -154,6 +154,10 @@ pub enum Commands {
     #[command(subcommand)]
     Storage(StorageCommands),
 
+    /// Manage Azure Cache for Redis
+    #[command(subcommand)]
+    Redis(RedisCommands),
+
     /// Manage Key Vault resources
     #[command(subcommand)]
     Keyvault(KeyvaultCommands),
@@ -1293,6 +1297,112 @@ pub struct StorageAccountKeysArgs {
     /// Resource group
     #[arg(short = 'g', long)]
     pub resource_group: String,
+}
+
+// --- Redis ---
+
+#[derive(Subcommand)]
+pub enum RedisCommands {
+    /// Create a new Redis cache
+    Create(RedisCreateArgs),
+    /// List Redis caches
+    List(RedisListArgs),
+    /// Show details of a Redis cache
+    Show(RedisShowArgs),
+    /// Delete a Redis cache
+    Delete(RedisDeleteArgs),
+    /// Retrieve the access keys of a Redis cache
+    #[command(name = "list-keys")]
+    ListKeys(RedisShowArgs),
+    /// Regenerate a Redis cache access key
+    #[command(name = "regenerate-keys")]
+    RegenerateKeys(RedisRegenerateKeysArgs),
+    /// Update a Redis cache
+    Update(RedisUpdateArgs),
+}
+
+#[derive(clap::Args)]
+pub struct RedisCreateArgs {
+    /// Name of the Redis cache
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Location
+    #[arg(short, long)]
+    pub location: String,
+    /// Type of Redis cache: Basic, Standard, or Premium
+    #[arg(long)]
+    pub sku: String,
+    /// Size of the Redis cache to deploy (e.g. c0, c1, p1). C = Basic/Standard, P = Premium
+    #[arg(long)]
+    pub vm_size: String,
+    /// Enable the non-SSL Redis port (6379)
+    #[arg(long)]
+    pub enable_non_ssl_port: bool,
+    /// Redis version, e.g. "6.0" or "latest"
+    #[arg(long)]
+    pub redis_version: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct RedisListArgs {
+    /// Resource group (omit for all in subscription)
+    #[arg(short = 'g', long)]
+    pub resource_group: Option<String>,
+}
+
+#[derive(clap::Args)]
+pub struct RedisShowArgs {
+    /// Name of the Redis cache
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+}
+
+#[derive(clap::Args)]
+pub struct RedisDeleteArgs {
+    /// Name of the Redis cache
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Do not prompt for confirmation
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+#[derive(clap::Args)]
+pub struct RedisRegenerateKeysArgs {
+    /// Name of the Redis cache
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Which key to regenerate
+    #[arg(long, value_parser = ["Primary", "Secondary"])]
+    pub key_type: String,
+}
+
+#[derive(clap::Args)]
+pub struct RedisUpdateArgs {
+    /// Name of the Redis cache
+    #[arg(short, long)]
+    pub name: String,
+    /// Resource group
+    #[arg(short = 'g', long)]
+    pub resource_group: String,
+    /// Space-separated tags in key=value form
+    #[arg(long, num_args = 0..)]
+    pub tags: Option<Vec<String>>,
+    /// Update a property: properties.<key>=<value> given as key=value
+    #[arg(long = "set", num_args = 0..)]
+    pub set: Option<Vec<String>>,
 }
 
 // --- Network ---

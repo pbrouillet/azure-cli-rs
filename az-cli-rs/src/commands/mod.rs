@@ -15,6 +15,7 @@ pub mod managed_app;
 pub mod management_group;
 pub mod network;
 pub mod provider;
+pub mod redis;
 pub mod resource;
 pub mod role;
 pub mod stack;

@@ -29,7 +29,7 @@ use cli::{
     ManagedappDefinitionCommands, ManagementGroupCommands, ManagementGroupEntitiesCommands,
     ManagementGroupHierarchySettingsCommands, ManagementGroupSubscriptionCommands,
     ManagementGroupTenantBackfillCommands, ProviderCommands, ProviderOperationCommands,
-    ProviderPermissionCommands, ResourceCommands, ResourceLinkCommands, StackCommands,
+    ProviderPermissionCommands, RedisCommands, ResourceCommands, ResourceLinkCommands, StackCommands,
     StackScopeCommands, StaticwebappAppsettingsCommands, StaticwebappCommands,
     StaticwebappEnvironmentCommands, StaticwebappHostnameCommands, StorageAccountCommands,
     StorageCommands, TagCommands, TsCommands,
@@ -70,8 +70,24 @@ fn sort_subcommands(cmd: clap::Command) -> clap::Command {
     cmd
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    // The full generated clap command tree is large; building and traversing it
+    // (Cli::command()/get_matches()) overflows the default main-thread stack in
+    // debug builds. Run everything on a worker thread with a generous stack.
+    let child = std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(|| {
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("failed to build tokio runtime");
+            rt.block_on(async_main());
+        })
+        .expect("failed to spawn CLI worker thread");
+    child.join().expect("CLI worker thread panicked");
+}
+
+async fn async_main() {
     let cmd = sort_subcommands(Cli::command());
     let matches = cmd.get_matches();
     let cli = Cli::from_arg_matches(&matches).expect("failed to parse CLI args");
@@ -1341,6 +1357,45 @@ async fn main() {
                     crate::generated::StorageAazCommands::Sku(sub),
                     "storage_aaz",
                 ).await
+            }
+        },
+        Commands::Redis(sub) => match sub {
+            RedisCommands::Create(args) => {
+                cmd_handlers::wrap(crate::commands::redis::create(
+                    &args.name,
+                    &args.resource_group,
+                    &args.location,
+                    &args.sku,
+                    &args.vm_size,
+                    args.enable_non_ssl_port,
+                    args.redis_version.as_deref(),
+                ).await)
+            }
+            RedisCommands::List(args) => {
+                cmd_handlers::wrap_list(crate::commands::redis::list(args.resource_group.as_deref()).await)
+            }
+            RedisCommands::Show(args) => {
+                cmd_handlers::wrap(crate::commands::redis::show(&args.name, &args.resource_group).await)
+            }
+            RedisCommands::Delete(args) => {
+                if !args.yes && !cmd_handlers::confirm(&format!("delete Redis cache '{}'", args.name)) {
+                    return;
+                }
+                cmd_handlers::wrap_none(crate::commands::redis::delete(&args.name, &args.resource_group).await)
+            }
+            RedisCommands::ListKeys(args) => {
+                cmd_handlers::wrap(crate::commands::redis::list_keys(&args.name, &args.resource_group).await)
+            }
+            RedisCommands::RegenerateKeys(args) => {
+                cmd_handlers::wrap(crate::commands::redis::regenerate_keys(&args.name, &args.resource_group, &args.key_type).await)
+            }
+            RedisCommands::Update(args) => {
+                cmd_handlers::wrap(crate::commands::redis::update(
+                    &args.name,
+                    &args.resource_group,
+                    args.tags.as_deref(),
+                    args.set.as_deref(),
+                ).await)
             }
         },
         Commands::Config(sub) => match sub {
